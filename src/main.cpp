@@ -67,6 +67,7 @@ int main()
 
     int                  selectedX = -1, selectedY = -1;
     std::optional<Piece> plateau[8][8];
+    std::string          titre_fenetre = "Jeu d'echecs";
 
     quick_imgui::loop(
         "Chess",
@@ -79,8 +80,9 @@ int main()
                     ImGui::Begin("Echec");
 
                     // variable texte modifiable pendant l'exécution
-                    std::string titre_fenetre = "Jeu d'echecs";
-                    ImGui::Text("%s", titre_fenetre.c_str());
+                    ImGui::Separator();
+                    ImGui::TextColored(ImVec4{1, 1, 0, 1}, "%s", titre_fenetre.c_str());
+                    ImGui::Separator();
                     if (ImGui::Button("Rejouer"))
                     {
                         setupStartingPosition(plateau);
@@ -121,6 +123,7 @@ int main()
                             ImGui::PushID(i * 8 + j);
                             if (ImGui::Button(label, ImVec2{50.f, 50.f}))
                             {
+                                titre_fenetre = "Jeu d'echecs";
                                 // aucune pièce sélectionnée
                                 if (selectedX == -1 && selectedY == -1)
                                 {
