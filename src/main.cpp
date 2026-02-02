@@ -126,6 +126,7 @@ bool canIMove(int fromX, int fromY, int toX, int toY, std::optional<Piece> plate
     switch (p.type)
     {
     case PieceType::Cavalier:
+
         return (std::abs(dx) * std::abs(dy) == 2);
 
     case PieceType::Tour:
@@ -187,9 +188,23 @@ int main()
                             int stylesCount = 0;
 
                             bool isSelected = (selectedX == i && selectedY == j);
+
+                            bool isPossibleMove = false;
+                            if (selectedX != -1 && canIMove(selectedX, selectedY, i, j, plateau))
+                            {
+                                isPossibleMove = true;
+                            }
+
                             if (isSelected)
                             {
                                 ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{0.8f, 0.8f, 0.0f, 1.0f});
+                            }
+                            else if (isPossibleMove)
+                            {
+                                if (plateau[i][j].has_value())
+                                    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{0.8f, 0.2f, 0.2f, 0.7f});
+                                else
+                                    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{0.2f, 0.8f, 0.2f, 0.7f});
                             }
                             else
                             {
