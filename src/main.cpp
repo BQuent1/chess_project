@@ -35,13 +35,16 @@ struct Piece {
     }
 };
 
+Color current_player = Color::Blanc;
+
 void setupStartingPosition(std::optional<Piece> board[8][8])
 {
     // vider le plateau
     for (int i = 0; i < 8; ++i)
         for (int j = 0; j < 8; ++j)
             board[i][j] = std::nullopt;
-
+    // Définir le joueur courant
+    current_player = Color::Blanc;
     // On place les pions
     for (int i = 0; i < 8; i++)
     {
@@ -61,13 +64,100 @@ void setupStartingPosition(std::optional<Piece> board[8][8])
     board[7][4]               = Piece{.type = PieceType::Roi, .color = Color::Blanc};
 }
 
+bool noMansLand(int fromX, int fromY, int toX, int toY, std::optional<Piece> plateau[8][8])
+{
+    int stepX = (toX - fromX) == 0 ? 0 : (toX - fromX) / std::abs(toX - fromX);
+    int stepY = (toY - fromY) == 0 ? 0 : (toY - fromY) / std::abs(toY - fromY);
+
+    int x = fromX + stepX;
+    int y = fromY + stepY;
+
+    while (x != toX || y != toY)
+    {
+        if (plateau[x][y].has_value())
+            return false;
+        x += stepX;
+        y += stepY;
+    }
+    return true;
+}
+
+bool canPionMove(int fromX, int fromY, int toX, int toY, std::optional<Piece> plateau[8][8])
+{
+    Piece& p         = plateau[fromX][fromY].value();
+    int    direction = (p.color == Color::Blanc) ? -1 : 1;
+    int    startRow  = (p.color == Color::Blanc) ? 6 : 1;
+
+    int dx = toX - fromX;
+    int dy = toY - fromY;
+
+    if (dx == direction && dy == 0 && !plateau[toX][toY].has_value())
+    {
+        return true;
+    }
+
+    // déplacement 2 cases
+    if (fromX == startRow && dx == 2 * direction && dy == 0 && !plateau[toX][toY].has_value() && !plateau[fromX + direction][fromY].has_value())
+    {
+        return true;
+    }
+
+    // capture
+    if (dx == direction && std::abs(dy) == 1 && plateau[toX][toY].has_value() && plateau[toX][toY]->color != p.color)
+    {
+        return true;
+    }
+
+    return false;
+}
+
+bool canIMove(int fromX, int fromY, int toX, int toY, std::optional<Piece> plateau[8][8])
+{
+    Piece& p = plateau[fromX][fromY].value();
+
+    if (plateau[toX][toY].has_value() && plateau[toX][toY]->color == p.color)
+    {
+        return false;
+    }
+
+    int dx = toX - fromX;
+    int dy = toY - fromY;
+
+    switch (p.type)
+    {
+    case PieceType::Cavalier:
+        return (std::abs(dx) * std::abs(dy) == 2);
+
+    case PieceType::Tour:
+        if (dx != 0 && dy != 0)
+            return false;
+        return noMansLand(fromX, fromY, toX, toY, plateau);
+
+    case PieceType::Fou:
+        if (std::abs(dx) != std::abs(dy))
+            return false;
+        return noMansLand(fromX, fromY, toX, toY, plateau);
+
+    case PieceType::Reine:
+        if (dx != 0 && dy != 0 && std::abs(dx) != std::abs(dy))
+            return false;
+        return noMansLand(fromX, fromY, toX, toY, plateau);
+
+    case PieceType::Roi:
+        return std::abs(dx) <= 1 && std::abs(dy) <= 1;
+
+    case PieceType::Pion:
+        return canPionMove(fromX, fromY, toX, toY, plateau);
+    }
+}
+
 int main()
 {
     float value{0.f};
 
     int                  selectedX = -1, selectedY = -1;
     std::optional<Piece> plateau[8][8];
-    std::string          titre_fenetre = "Jeu d'echecs";
+    std::string          titre_fenetre = (current_player == Color::Blanc ? "Blanc à toi de jouer !" : "Noir à toi de jouer !");
 
     quick_imgui::loop(
         "Chess",
@@ -79,7 +169,6 @@ int main()
 
                     ImGui::Begin("Echec");
 
-                    // variable texte modifiable pendant l'exécution
                     ImGui::Separator();
                     ImGui::TextColored(ImVec4{1, 1, 0, 1}, "%s", titre_fenetre.c_str());
                     ImGui::Separator();
@@ -123,16 +212,22 @@ int main()
                             ImGui::PushID(i * 8 + j);
                             if (ImGui::Button(label, ImVec2{50.f, 50.f}))
                             {
-                                titre_fenetre = "Jeu d'echecs";
-                                // aucune pièce sélectionnée
+                                titre_fenetre = (current_player == Color::Blanc ? "Blanc à toi de jouer !" : "Noir à toi de jouer !");
                                 if (selectedX == -1 && selectedY == -1)
                                 {
                                     // test si case pas vide
                                     if (plateau[i][j].has_value())
                                     {
-                                        selectedX = i;
-                                        selectedY = j;
-                                        std::cout << "Piece selectionnee en (" << i << ", " << j << ")\n";
+                                        if (plateau[i][j]->color == current_player)
+                                        {
+                                            selectedX = i;
+                                            selectedY = j;
+                                            std::cout << "piece selectionnee en (" << i << ", " << j << ")\n";
+                                        }
+                                        else
+                                        {
+                                            titre_fenetre = "Ce n'est pas votre tour!";
+                                        }
                                     }
                                 }
                                 // une pièce est déjà sélectionnée
@@ -145,24 +240,23 @@ int main()
                                     }
                                     else
                                     {
-                                        // déplacer que si la case est vide
-                                        if (plateau[i][j].has_value())
-                                        {
-                                            std::cout << "Case occupee! Deplacement impossible.\n";
-                                            titre_fenetre = "Impossible !";
-                                            selectedX     = -1;
-                                            selectedY     = -1;
-                                        }
-                                        else
+                                        if (canIMove(selectedX, selectedY, i, j, plateau))
                                         {
                                             plateau[i][j]                 = plateau[selectedX][selectedY];
                                             plateau[selectedX][selectedY] = std::nullopt;
+                                            selectedX                     = -1;
+                                            selectedY                     = -1;
+
+                                            std::cout << "Piece deplacee vers (" << i << ", " << j << ")\n";
+                                            current_player = (current_player == Color::Blanc) ? Color::Noir : Color::Blanc;
+                                            titre_fenetre  = (current_player == Color::Blanc ? "Blanc à toi de jouer !" : "Noir à toi de jouer !");
                                         }
-
-                                        selectedX = -1;
-                                        selectedY = -1;
-
-                                        std::cout << "Piece deplacee vers (" << i << ", " << j << ")\n";
+                                        else
+                                        {
+                                            titre_fenetre = "Deplacement non autorise !";
+                                            selectedX     = -1;
+                                            selectedY     = -1;
+                                        }
                                     }
                                 }
                             }
