@@ -19,6 +19,12 @@ private:
     glm::mat4 _projection;
     glm::mat4 _view;
 
+    float     _yaw      = 90.0f;
+    float     _pitch    = 45.0f;
+    float     _distance = 12.0f;
+    glm::vec3 _target   = glm::vec3(4.0f, 0.0f, 4.0f);
+    glm::vec3 _camPos;
+
     // Fonction utilitaire pour compiler un shader (on la cachera dans le .cpp)
     unsigned int compileShader(unsigned int type, const char* source);
 
@@ -27,8 +33,9 @@ public:
     ~Renderer3D();
 
     void init(int width, int height);
-    void render(int width, int height); // On lui passe la taille de la fenêtre ImGui
+    void render(int width, int height);
+    void updateCamera();
+    void updateViewMatrix();
 
-    // Pour qu'ImGui puisse afficher le résultat
     ImTextureID getTextureID() const { return (void*)(intptr_t)_textureColorBuffer; }
 };

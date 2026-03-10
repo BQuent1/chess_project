@@ -5,7 +5,6 @@
 #include <sstream>
 #include <string>
 
-// Utilitaire unique pour charger les shaders
 std::string loadShaderSource(const char* filepath)
 {
     std::ifstream     file(filepath);
@@ -70,27 +69,73 @@ void Renderer3D::init(int width, int height)
 
     // 2. Géométrie
     float vertices[] = {
-        0.5f, 0.0f, 0.5f,
-        0.5f, 0.0f, -0.5f,
-        -0.5f, 0.0f, -0.5f,
-        -0.5f, 0.0f, 0.5f
+        // positions          // normales
+        // Face Arrière
+        -0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f,
+        0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f,
+        0.5f, 0.5f, -0.5f, 0.0f, 0.0f, -1.0f,
+        0.5f, 0.5f, -0.5f, 0.0f, 0.0f, -1.0f,
+        -0.5f, 0.5f, -0.5f, 0.0f, 0.0f, -1.0f,
+        -0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f,
+        // Face Avant
+        -0.5f, -0.5f, 0.5f, 0.0f, 0.0f, 1.0f,
+        0.5f, -0.5f, 0.5f, 0.0f, 0.0f, 1.0f,
+        0.5f, 0.5f, 0.5f, 0.0f, 0.0f, 1.0f,
+        0.5f, 0.5f, 0.5f, 0.0f, 0.0f, 1.0f,
+        -0.5f, 0.5f, 0.5f, 0.0f, 0.0f, 1.0f,
+        -0.5f, -0.5f, 0.5f, 0.0f, 0.0f, 1.0f,
+        // Face Gauche
+        -0.5f, 0.5f, 0.5f, -1.0f, 0.0f, 0.0f,
+        -0.5f, 0.5f, -0.5f, -1.0f, 0.0f, 0.0f,
+        -0.5f, -0.5f, -0.5f, -1.0f, 0.0f, 0.0f,
+        -0.5f, -0.5f, -0.5f, -1.0f, 0.0f, 0.0f,
+        -0.5f, -0.5f, 0.5f, -1.0f, 0.0f, 0.0f,
+        -0.5f, 0.5f, 0.5f, -1.0f, 0.0f, 0.0f,
+        // Face Droite
+        0.5f, 0.5f, 0.5f, 1.0f, 0.0f, 0.0f,
+        0.5f, 0.5f, -0.5f, 1.0f, 0.0f, 0.0f,
+        0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 0.0f,
+        0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 0.0f,
+        0.5f, -0.5f, 0.5f, 1.0f, 0.0f, 0.0f,
+        0.5f, 0.5f, 0.5f, 1.0f, 0.0f, 0.0f,
+        // Face Bas
+        -0.5f, -0.5f, -0.5f, 0.0f, -1.0f, 0.0f,
+        0.5f, -0.5f, -0.5f, 0.0f, -1.0f, 0.0f,
+        0.5f, -0.5f, 0.5f, 0.0f, -1.0f, 0.0f,
+        0.5f, -0.5f, 0.5f, 0.0f, -1.0f, 0.0f,
+        -0.5f, -0.5f, 0.5f, 0.0f, -1.0f, 0.0f,
+        -0.5f, -0.5f, -0.5f, 0.0f, -1.0f, 0.0f,
+        // Face Haut
+        -0.5f, 0.5f, -0.5f, 0.0f, 1.0f, 0.0f,
+        0.5f, 0.5f, -0.5f, 0.0f, 1.0f, 0.0f,
+        0.5f, 0.5f, 0.5f, 0.0f, 1.0f, 0.0f,
+        0.5f, 0.5f, 0.5f, 0.0f, 1.0f, 0.0f,
+        -0.5f, 0.5f, 0.5f, 0.0f, 1.0f, 0.0f,
+        -0.5f, 0.5f, -0.5f, 0.0f, 1.0f, 0.0f
     };
-    unsigned int indices[] = {0, 1, 3, 1, 2, 3};
+
+    // unsigned int indices[] = {0, 1, 3, 1, 2, 3};
 
     glGenVertexArrays(1, &_squareVAO);
     glGenBuffers(1, &_squareVBO);
-    unsigned int EBO;
-    glGenBuffers(1, &EBO);
 
     glBindVertexArray(_squareVAO);
     glBindBuffer(GL_ARRAY_BUFFER, _squareVBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+    // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+    // glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    // glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+
+    // position
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
+
+    // normales
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+
     glBindVertexArray(0);
 
     // 3. Setup du Framebuffer
@@ -112,8 +157,9 @@ void Renderer3D::init(int width, int height)
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     // 4. Caméra
+    updateViewMatrix();
     _projection = glm::perspective(glm::radians(45.0f), (float)width / (float)height, 0.1f, 100.0f);
-    _view       = glm::lookAt(glm::vec3(4.0f, 10.0f, 12.0f), glm::vec3(4.0f, 0.0f, 4.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    // _view       = glm::lookAt(glm::vec3(4.0f, 10.0f, 12.0f), glm::vec3(4.0f, 0.0f, 4.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 }
 
 // ================= RENDU =================
@@ -123,10 +169,19 @@ void Renderer3D::render(int width, int height)
     glViewport(0, 0, width, height);
     glEnable(GL_DEPTH_TEST);
 
-    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+    glClearColor(1.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     glUseProgram(_shaderProgram);
+
+    unsigned int lightDirLoc = glGetUniformLocation(_shaderProgram, "uLightDir");
+    unsigned int viewPosLoc  = glGetUniformLocation(_shaderProgram, "uViewPos");
+
+    glUniform3f(lightDirLoc, -0.5f, -1.0f, -0.5f);
+
+    // On envoie la position de la caméra (extraite de ta matrice _view ou définie manuellement)
+    glUniform3f(viewPosLoc, _camPos.x, _camPos.y, _camPos.z);
+
     _projection = glm::perspective(glm::radians(45.0f), (float)width / (float)height, 0.1f, 100.0f);
 
     unsigned int viewLoc  = glGetUniformLocation(_shaderProgram, "view");
@@ -143,17 +198,61 @@ void Renderer3D::render(int width, int height)
     {
         for (int j = 0; j < 8; j++)
         {
+            // Dans ta boucle de rendu pour le sol
             glm::mat4 model = glm::mat4(1.0f);
             model           = glm::translate(model, glm::vec3((float)j + 0.5f, 0.0f, (float)i + 0.5f));
+
+            // Ici on écrase le cube sur l'axe Y (0.1f) pour en faire une plaque
+            model = glm::scale(model, glm::vec3(0.95f, 0.1f, 0.95f));
+
             glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
 
             glm::vec3 color = ((i + j) % 2 == 0) ? glm::vec3(0.9f, 0.9f, 0.9f) : glm::vec3(0.2f, 0.2f, 0.2f);
             glUniform3fv(colorLoc, 1, glm::value_ptr(color));
 
-            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+            // glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+            glDrawArrays(GL_TRIANGLES, 0, 36);
         }
     }
 
     glBindVertexArray(0);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void Renderer3D::updateViewMatrix()
+{
+    float yawRad   = glm::radians(_yaw);
+    float pitchRad = glm::radians(_pitch);
+
+    glm::vec3 camPos;
+    camPos.x = _target.x + _distance * cos(pitchRad) * cos(yawRad);
+    camPos.y = _target.y + _distance * sin(pitchRad);
+    camPos.z = _target.z + _distance * cos(pitchRad) * sin(yawRad);
+
+    _camPos.x = _target.x + _distance * cos(pitchRad) * cos(yawRad);
+    _camPos.y = _target.y + _distance * sin(pitchRad);
+    _camPos.z = _target.z + _distance * cos(pitchRad) * sin(yawRad);
+
+    _view = glm::lookAt(_camPos, _target, glm::vec3(0.0f, 1.0f, 0.0f));
+}
+
+void Renderer3D::updateCamera()
+{
+    ImGuiIO& io = ImGui::GetIO();
+
+    // Sensibilité de la rotation
+    float sensitivity = 0.5f;
+
+    // On récupère le mouvement relatif de la souris (MouseDelta)
+    _yaw += io.MouseDelta.x * sensitivity;
+    _pitch -= io.MouseDelta.y * sensitivity;
+
+    // Limites pour éviter de "retourner" la caméra
+    if (_pitch > 89.0f)
+        _pitch = 89.0f;
+    if (_pitch < 10.0f)
+        _pitch = 10.0f;
+
+    // On recalcule la matrice de vue (View Matrix)
+    updateViewMatrix();
 }
