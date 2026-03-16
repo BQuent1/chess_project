@@ -114,7 +114,7 @@ int main()
                                             ImGui::Begin("Vue 3D", nullptr, window_flags);
 
                                             ImVec2 viewportSize = ImGui::GetContentRegionAvail();
-                                            renderer3D.render((int)viewportSize.x, (int)viewportSize.y);
+                                            renderer3D.render((int)viewportSize.x, (int)viewportSize.y, engine);
                                             // On dessine l'image
                                             ImGui::Image(renderer3D.getTextureID(), viewportSize, ImVec2(0, 1), ImVec2(1, 0));
 

@@ -4,6 +4,11 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <map>
+#include <string>
+#include "Mesh.hpp"
+
+class ChessEngine; // forward declaration
 
 class Renderer3D {
 private:
@@ -25,6 +30,9 @@ private:
     glm::vec3 _target   = glm::vec3(4.0f, 0.0f, 4.0f);
     glm::vec3 _camPos;
 
+    // --- Modèles 3D ---
+    std::map<std::string, Mesh> _pieceModels;
+
     // Fonction utilitaire pour compiler un shader (on la cachera dans le .cpp)
     unsigned int compileShader(unsigned int type, const char* source);
 
@@ -33,7 +41,9 @@ public:
     ~Renderer3D();
 
     void init(int width, int height);
-    void render(int width, int height);
+    void loadModels();
+    
+    void render(int width, int height, const ChessEngine& engine);
     void updateCamera();
     void updateViewMatrix();
 

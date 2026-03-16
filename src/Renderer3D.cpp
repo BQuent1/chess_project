@@ -1,4 +1,5 @@
 #include "Renderer3D.hpp"
+#include "../include/ChessEngine.hpp"
 #include <glad/glad.h>
 #include <fstream>
 #include <iostream>
@@ -160,10 +161,23 @@ void Renderer3D::init(int width, int height)
     updateViewMatrix();
     _projection = glm::perspective(glm::radians(45.0f), (float)width / (float)height, 0.1f, 100.0f);
     // _view       = glm::lookAt(glm::vec3(4.0f, 10.0f, 12.0f), glm::vec3(4.0f, 0.0f, 4.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+
+    loadModels();
+}
+
+void Renderer3D::loadModels()
+{
+    // Load each piece type model. For now, we load what we have in assets/models.
+    _pieceModels["pawn"].loadFromObj("../../assets/models/pawn_model.obj");
+    _pieceModels["knight"].loadFromObj("../../assets/models/knight_model.obj");
+    _pieceModels["bishop"].loadFromObj("../../assets/models/bishop_model.obj");
+    _pieceModels["rook"].loadFromObj("../../assets/models/rook_model.obj");
+    _pieceModels["queen"].loadFromObj("../../assets/models/queen_model.obj");
+    _pieceModels["king"].loadFromObj("../../assets/models/king_model.obj");
 }
 
 // ================= RENDU =================
-void Renderer3D::render(int width, int height)
+void Renderer3D::render(int width, int height, const ChessEngine& engine)
 {
     glBindFramebuffer(GL_FRAMEBUFFER, _fbo); // FIX : Pas de &
     glViewport(0, 0, width, height);
@@ -212,6 +226,98 @@ void Renderer3D::render(int width, int height)
 
             // glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
             glDrawArrays(GL_TRIANGLES, 0, 36);
+
+            // Logique d'état du jeu pour les pièces
+            if (engine.plateau[i][j].has_value()) {
+                const Piece& piece = engine.plateau[i][j].value();
+
+                std::string modelStr = "";
+                switch(piece.type) {
+                    case PieceType::Pion: modelStr = "pawn"; break;
+                    case PieceType::Tour: modelStr = "rook"; break;
+                    case PieceType::Cavalier: modelStr = "knight"; break;
+                    case PieceType::Fou: modelStr = "bishop"; break;
+                    case PieceType::Reine: modelStr = "queen"; break;
+                    case PieceType::Roi: modelStr = "king"; break;
+                    default: break;
+                }
+
+                if (!modelStr.empty()) {
+                    auto it = _pieceModels.find(modelStr);
+                    if (it != _pieceModels.end()) {
+                        const Mesh& mesh = it->second;
+
+                        // ====== CALCUL DE LA BOUNDING BOX ET CENTRAGE ======
+                        glm::vec3 minAABB = mesh.getAABBMin();
+                        glm::vec3 maxAABB = mesh.getAABBMax();
+                        glm::vec3 centerAABB = (minAABB + maxAABB) * 0.5f;
+
+                        // Scale et Rotation spécifiques selon la couleur
+                        float scaleValue = 0.1f; // Maintenu à votre ajustement de 0.1
+                        float rotAngleY = 0.0f;
+                        float rotAngleX = glm::radians(-90.0f); // Pivoter de -90deg sur l'axe X (modèles orientés vers +Z)
+                        float rotAngleZ = 0.0f;
+
+                        if (piece.color == Color::Blanc) {
+                            rotAngleY = glm::radians(180.0f);
+                        } else {
+                            rotAngleY = glm::radians(0.0f);
+                        }
+
+                        if (piece.type == PieceType::Cavalier) {
+                            rotAngleY += glm::radians(180.0f); // Offset du cavalier
+                        }
+
+                        // 1. Matrice de transformation géométrique de base (Rotation + Scale)
+                        glm::mat4 transform = glm::mat4(1.0f);
+                        transform = glm::rotate(transform, rotAngleY, glm::vec3(0.0f, 1.0f, 0.0f));
+                        transform = glm::rotate(transform, rotAngleX, glm::vec3(1.0f, 0.0f, 0.0f));
+                        transform = glm::rotate(transform, rotAngleZ, glm::vec3(0.0f, 0.0f, 1.0f));
+                        transform = glm::scale(transform, glm::vec3(scaleValue));
+
+                        // 2. Trouver le point Y le plus bas du modèle une fois transformé
+                        glm::vec3 corners[8] = {
+                            glm::vec3(minAABB.x, minAABB.y, minAABB.z) - centerAABB,
+                            glm::vec3(maxAABB.x, minAABB.y, minAABB.z) - centerAABB,
+                            glm::vec3(minAABB.x, maxAABB.y, minAABB.z) - centerAABB,
+                            glm::vec3(maxAABB.x, maxAABB.y, minAABB.z) - centerAABB,
+                            glm::vec3(minAABB.x, minAABB.y, maxAABB.z) - centerAABB,
+                            glm::vec3(maxAABB.x, minAABB.y, maxAABB.z) - centerAABB,
+                            glm::vec3(minAABB.x, maxAABB.y, maxAABB.z) - centerAABB,
+                            glm::vec3(maxAABB.x, maxAABB.y, maxAABB.z) - centerAABB
+                        };
+
+                        float lowestY = 999999.0f;
+                        for(int k = 0; k < 8; ++k) {
+                            glm::vec4 transCorner = transform * glm::vec4(corners[k], 1.0f);
+                            if(transCorner.y < lowestY) {
+                                lowestY = transCorner.y;
+                            }
+                        }
+
+                        // 3. Assemblage final
+                        glm::mat4 pieceModel = glm::mat4(1.0f);
+                        // A. Translation pour poser la base sur la tuile à Y = 0.05
+                        pieceModel = glm::translate(pieceModel, glm::vec3((float)j + 0.5f, 0.05f - lowestY, (float)i + 0.5f));
+                        // B. Ajout des rotations et scales
+                        pieceModel *= transform;
+                        // C. Centrage sur la géométrie locale (on se remet à 0,0,0)
+                        pieceModel = glm::translate(pieceModel, -centerAABB);
+
+                        glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(pieceModel));
+
+                        // Coloration
+                        glm::vec3 pieceColor = (piece.color == Color::Blanc) ? glm::vec3(0.8f, 0.8f, 0.8f) : glm::vec3(0.2f, 0.15f, 0.1f);
+                        glUniform3fv(colorLoc, 1, glm::value_ptr(pieceColor));
+
+                        mesh.bind();
+                        glDrawArrays(GL_TRIANGLES, 0, mesh.getVertexCount());
+                        mesh.unbind();
+                    }
+                }
+                
+                glBindVertexArray(_squareVAO); // Re-bind square VAO pour les tuiles suivantes
+            }
         }
     }
 
