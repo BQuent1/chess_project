@@ -1,14 +1,16 @@
 #include "../include/ChessEngine.hpp"
 #include <cmath>
 #include "Piece.hpp"
+#include "RandomGen.hpp"
 
 ChessEngine::ChessEngine()
 {
-    reset();
+    reset(false);
 }
 
-void ChessEngine::reset()
+void ChessEngine::reset(bool chaos)
 {
+    isChaosMode = chaos;
     for (int i = 0; i < 8; ++i)
         for (int j = 0; j < 8; ++j)
             plateau[i][j] = std::nullopt;
@@ -16,22 +18,46 @@ void ChessEngine::reset()
     current_player = Color::Blanc;
     message        = "Blanc à toi de jouer !";
 
+    int nextId = 1;
+
     for (int i = 0; i < 8; i++)
     {
-        plateau[1][i] = Piece{.type = PieceType::Pion, .color = Color::Noir};
-        plateau[6][i] = Piece{.type = PieceType::Pion, .color = Color::Blanc};
+        plateau[1][i] = Piece{.type = PieceType::Pion, .color = Color::Noir, .id = nextId++};
+        plateau[6][i] = Piece{.type = PieceType::Pion, .color = Color::Blanc, .id = nextId++};
     }
     // Positions initiales
-    plateau[0][0] = plateau[0][7] = Piece{.type = PieceType::Tour, .color = Color::Noir};
-    plateau[7][0] = plateau[7][7] = Piece{.type = PieceType::Tour, .color = Color::Blanc};
-    plateau[0][1] = plateau[0][6] = Piece{.type = PieceType::Cavalier, .color = Color::Noir};
-    plateau[7][1] = plateau[7][6] = Piece{.type = PieceType::Cavalier, .color = Color::Blanc};
-    plateau[0][2] = plateau[0][5] = Piece{.type = PieceType::Fou, .color = Color::Noir};
-    plateau[7][2] = plateau[7][5] = Piece{.type = PieceType::Fou, .color = Color::Blanc};
-    plateau[0][3]                 = Piece{.type = PieceType::Reine, .color = Color::Noir};
-    plateau[7][3]                 = Piece{.type = PieceType::Reine, .color = Color::Blanc};
-    plateau[0][4]                 = Piece{.type = PieceType::Roi, .color = Color::Noir};
-    plateau[7][4]                 = Piece{.type = PieceType::Roi, .color = Color::Blanc};
+    plateau[0][0] = plateau[0][7] = Piece{.type = PieceType::Tour, .color = Color::Noir, .id = nextId++};
+    plateau[7][0] = plateau[7][7] = Piece{.type = PieceType::Tour, .color = Color::Blanc, .id = nextId++};
+    
+    // Assignation ID unique a cause de la struct initializer
+    if (plateau[0][7].has_value()) plateau[0][7]->id = nextId++;
+    if (plateau[7][7].has_value()) plateau[7][7]->id = nextId++;
+
+    plateau[0][1] = plateau[0][6] = Piece{.type = PieceType::Cavalier, .color = Color::Noir, .id = nextId++};
+    plateau[7][1] = plateau[7][6] = Piece{.type = PieceType::Cavalier, .color = Color::Blanc, .id = nextId++};
+    if (plateau[0][6].has_value()) plateau[0][6]->id = nextId++;
+    if (plateau[7][6].has_value()) plateau[7][6]->id = nextId++;
+
+    plateau[0][2] = plateau[0][5] = Piece{.type = PieceType::Fou, .color = Color::Noir, .id = nextId++};
+    plateau[7][2] = plateau[7][5] = Piece{.type = PieceType::Fou, .color = Color::Blanc, .id = nextId++};
+    if (plateau[0][5].has_value()) plateau[0][5]->id = nextId++;
+    if (plateau[7][5].has_value()) plateau[7][5]->id = nextId++;
+
+    plateau[0][3]                 = Piece{.type = PieceType::Reine, .color = Color::Noir, .id = nextId++};
+    plateau[7][3]                 = Piece{.type = PieceType::Reine, .color = Color::Blanc, .id = nextId++};
+    plateau[0][4]                 = Piece{.type = PieceType::Roi, .color = Color::Noir, .id = nextId++};
+    plateau[7][4]                 = Piece{.type = PieceType::Roi, .color = Color::Blanc, .id = nextId++};
+
+    // Initialisation continue de l'espérance de vie étudiée (Loi de Weibull)
+    if (isChaosMode) {
+        for (int i = 0; i < 8; ++i) {
+            for (int j = 0; j < 8; ++j) {
+                if (plateau[i][j].has_value()) {
+                    plateau[i][j]->maxLifespan = RandomGen::weibull(15.0, 2.0);
+                }
+            }
+        }
+    }
 }
 
 bool ChessEngine::noMansLand(int fromX, int fromY, int toX, int toY)
@@ -92,8 +118,28 @@ bool ChessEngine::canIMove(int fromX, int fromY, int toX, int toY)
 
 void ChessEngine::executeMove(int fromX, int fromY, int toX, int toY)
 {
+    float distSq = (toX - fromX)*(toX - fromX) + (toY - fromY)*(toY - fromY);
+    float dist = std::sqrt(distSq);
+
     plateau[toX][toY]     = plateau[fromX][fromY];
     plateau[fromX][fromY] = std::nullopt;
+
+    if (plateau[toX][toY].has_value()) {
+        plateau[toX][toY]->traveledDistance += dist;
+        // -- Phase 4: Loi de Weibull (Fatigue) --
+        if (isChaosMode) {
+            // Si elle dépasse sa durée de vie générée aléatoirement, la pièce meurt de fatigue et disparait du plateau.
+            if (plateau[toX][toY]->traveledDistance >= plateau[toX][toY]->maxLifespan) {
+                plateau[toX][toY] = std::nullopt;
+                message = "Une piece est morte de fatigue (Weibull) ! ";
+            }
+        }
+    }
+
     current_player        = (current_player == Color::Blanc) ? Color::Noir : Color::Blanc;
-    message               = (current_player == Color::Blanc ? "Blanc à toi de jouer !" : "Noir à toi de jouer !");
+    if (message.find("fatigue") == std::string::npos) {
+        message               = (current_player == Color::Blanc ? "Blanc à toi de jouer !" : "Noir à toi de jouer !");
+    } else {
+        message += (current_player == Color::Blanc ? "A Blanc !" : "A Noir !");
+    }
 }

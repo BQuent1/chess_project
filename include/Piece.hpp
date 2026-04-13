@@ -14,6 +14,9 @@ enum class PieceType { Pion,
 struct Piece {
     PieceType type;
     Color     color;
+    int       id = 0; // Identifiant unique attribué au début de la partie
+    float     maxLifespan = 0.0f;
+    float     traveledDistance = 0.0f;
 
     const char* getIcon() const
     {

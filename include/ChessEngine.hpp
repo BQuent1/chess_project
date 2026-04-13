@@ -9,9 +9,10 @@ public:
     std::optional<Piece> plateau[8][8];
     Color                current_player = Color::Blanc;
     std::string          message;
+    bool                 isChaosMode = false;
 
     ChessEngine();
-    void reset();
+    void reset(bool chaos = false);
     bool noMansLand(int fromX, int fromY, int toX, int toY);
     bool canPionMove(int fromX, int fromY, int toX, int toY);
     bool canIMove(int fromX, int fromY, int toX, int toY);
