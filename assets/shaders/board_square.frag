@@ -3,12 +3,17 @@ out vec4 FragColor;
 
 in vec3 FragPos;
 in vec3 Normal;
+in vec2 TexCoords;
 
 uniform vec3 squareColor;
 uniform vec3 uViewPos;
 
 // Global Ambiance Color (switches based on turn)
 uniform vec3 ambientColor;
+
+// Texture uniforms
+uniform sampler2D diffuseTex;
+uniform bool hasTexture;
 
 struct DirLight {
     vec3 direction;
@@ -63,5 +68,12 @@ void main() {
     vec3 result = CalcDirLight(dirLight, norm, viewDir);
     result += CalcPointLight(pointLight, norm, FragPos, viewDir);
 
-    FragColor = vec4(result * squareColor, 1.0);
+    vec3 finalBaseColor = squareColor;
+    if (hasTexture) {
+        vec4 texColor = texture(diffuseTex, TexCoords);
+        if (texColor.a < 0.1) discard; // Allow transparency cutout
+        finalBaseColor *= texColor.rgb;
+    }
+
+    FragColor = vec4(result * finalBaseColor, 1.0);
 }

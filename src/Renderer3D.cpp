@@ -266,7 +266,7 @@ void Renderer3D::loadModels()
     _pieceModels["king"].loadFromObj("../../assets/models/king_model.obj");
 
     // Decors / Spectateurs
-    _pieceModels["spectator"].loadFromObj("../../assets/models/spectator/source/MrPikmin.obj");
+    _pieceModels["spectator"].loadFromGLTF("../../assets/models/spectator_model/clean_mii.glb");
     _pieceModels["seats"].loadFromObj("../../assets/models/normal_stadium_seats_v1_L1.123cda2b5658-a3c1-4927-86c0-def7dd9a8010/16949_Normal_Stadium_Seats_v1_NEW.obj");
 }
 
@@ -429,6 +429,7 @@ void Renderer3D::render(int width, int height, const ChessEngine& engine, int se
 
             glUniform3fv(colorLoc, 1, glm::value_ptr(tileColor));
 
+            glUniform1i(glGetUniformLocation(_shaderProgram, "hasTexture"), 0);
             glDrawArrays(GL_TRIANGLES, 0, 36);
 
             // Logique d'état du jeu pour les pièces
@@ -453,11 +454,11 @@ void Renderer3D::render(int width, int height, const ChessEngine& engine, int se
                 if (!modelStr.empty()) {
                     auto it = _pieceModels.find(modelStr);
                     if (it != _pieceModels.end()) {
-                        const Mesh& mesh = it->second;
+                        const Model& model3D = it->second;
 
                         // ====== CALCUL DE LA BOUNDING BOX ET CENTRAGE ======
-                        glm::vec3 minAABB = mesh.getAABBMin();
-                        glm::vec3 maxAABB = mesh.getAABBMax();
+                        glm::vec3 minAABB = model3D.getAABBMin();
+                        glm::vec3 maxAABB = model3D.getAABBMax();
                         glm::vec3 centerAABB = (minAABB + maxAABB) * 0.5f;
 
                         // Scale et Rotation spécifiques selon la couleur
@@ -535,9 +536,12 @@ void Renderer3D::render(int width, int height, const ChessEngine& engine, int se
 
                         glUniform3fv(colorLoc, 1, glm::value_ptr(pieceColor));
 
-                        mesh.bind();
-                        glDrawArrays(GL_TRIANGLES, 0, mesh.getVertexCount());
-                        mesh.unbind();
+                        for(const auto& mesh : model3D._meshes) {
+                            mesh.bind();
+                            mesh.bindTexture(_shaderProgram);
+                            glDrawArrays(GL_TRIANGLES, 0, mesh.getVertexCount());
+                            mesh.unbind();
+                        }
                     }
                 }
             }
@@ -558,7 +562,7 @@ void Renderer3D::render(int width, int height, const ChessEngine& engine, int se
         }
 
         if (_pieceModels.count(modelName) > 0) {
-            Mesh& mesh = _pieceModels[modelName];
+            const Model& model3D = _pieceModels[modelName];
 
             // Interpolation position (X, Z)
             float t = std::min(_currentAnim.progress, 1.0f);
@@ -593,8 +597,8 @@ void Renderer3D::render(int width, int height, const ChessEngine& engine, int se
             animModel = glm::rotate(animModel, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f)); // Modeles obj couchés
 
             // 5. Centrage AABB
-            glm::vec3 aabbMin = mesh.getAABBMin();
-            glm::vec3 aabbMax = mesh.getAABBMax();
+            glm::vec3 aabbMin = model3D.getAABBMin();
+            glm::vec3 aabbMax = model3D.getAABBMax();
             glm::vec3 center = (aabbMin + aabbMax) * 0.5f;
             animModel = glm::scale(animModel, glm::vec3(0.1f));
             animModel = glm::translate(animModel, -center);
@@ -606,9 +610,12 @@ void Renderer3D::render(int width, int height, const ChessEngine& engine, int se
             pieceColor = glm::mix(pieceColor, glm::vec3(0.3f, 1.0f, 0.8f), 0.7f); // Magic glow
             glUniform3fv(colorLoc, 1, glm::value_ptr(pieceColor));
 
-            mesh.bind();
-            glDrawArrays(GL_TRIANGLES, 0, mesh.getVertexCount());
-            mesh.unbind();
+            for(const auto& mesh : model3D._meshes) {
+                mesh.bind();
+                mesh.bindTexture(_shaderProgram);
+                glDrawArrays(GL_TRIANGLES, 0, mesh.getVertexCount());
+                mesh.unbind();
+            }
         }
     }
 
@@ -631,62 +638,85 @@ void Renderer3D::render(int width, int height, const ChessEngine& engine, int se
         bModel = glm::translate(bModel, borders[i].pos);
         bModel = glm::scale(bModel, borders[i].scale);
         glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(bModel));
+        glUniform1i(glGetUniformLocation(_shaderProgram, "hasTexture"), 0);
         glDrawArrays(GL_TRIANGLES, 0, 36);
     }
     
     // ====== RENDU DES GRADINS & SPECTATEURS (Poisson + Permutation) ======
     if (_isChaosMode && _pieceModels.count("seats") > 0 && _pieceModels.count("spectator") > 0) {
-        Mesh& seatMesh = _pieceModels["seats"];
-        Mesh& specMesh = _pieceModels["spectator"];
+        const Model& seatModel = _pieceModels["seats"];
+        const Model& specModel = _pieceModels["spectator"];
         
         // Couleur neutre / bleue pour les sièges
         glm::vec3 seatColor(0.2f, 0.4f, 0.7f);
         glUniform3fv(colorLoc, 1, glm::value_ptr(seatColor));
-        seatMesh.bind();
+        for(const auto& mesh : seatModel._meshes) {
+            mesh.bind();
+            mesh.bindTexture(_shaderProgram);
 
-        for (const auto& sTrans : _seatTransforms) {
-            // Recalculer l'AABB pour le siège, ou centrage manuel si besoin...
-            // Pour faire simple, un modèle de siège importé doit être scale convenablement
-            glm::mat4 m = glm::scale(sTrans, glm::vec3(0.02f)); // Ajustement d'echelle empirique
-            m = glm::rotate(m, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f)); // Rotation pour ne pas faire face au sol
-            glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(m));
-            glDrawArrays(GL_TRIANGLES, 0, seatMesh.getVertexCount());
+            for (const auto& sTrans : _seatTransforms) {
+                glm::mat4 m = glm::scale(sTrans, glm::vec3(0.02f)); // Ajustement d'echelle empirique
+                m = glm::rotate(m, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f)); // Rotation pour ne pas faire face au sol
+                glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(m));
+                glDrawArrays(GL_TRIANGLES, 0, mesh.getVertexCount());
+            }
+            mesh.unbind();
         }
-        seatMesh.unbind();
 
-        // Couleur Pikmin pour les spectateurs
-        glm::vec3 specColor(0.8f, 0.2f, 0.2f);
+        // Couleur neutre pour que la texture du modèle soit visible sans filtre
+        glm::vec3 specColor(1.0f, 1.0f, 1.0f);
         glUniform3fv(colorLoc, 1, glm::value_ptr(specColor));
-        specMesh.bind();
-
-        glm::vec3 specAabbMin = specMesh.getAABBMin();
-        glm::vec3 specAabbMax = specMesh.getAABBMax();
+        glm::vec3 specAabbMin = specModel.getAABBMin();
+        glm::vec3 specAabbMax = specModel.getAABBMax();
         glm::vec3 specCenter = (specAabbMin + specAabbMax) * 0.5f;
 
-        for (const auto& s : _spectators) {
-            // Trouver la transformation globale de ce siège:
-            int gradinIndex = s.seatIndex / _spectatorSeatLocalTransforms.size();
-            int localSeatIndex = s.seatIndex % _spectatorSeatLocalTransforms.size();
-
-            // S'il y a plus de sièges demandés que de gradins existants, on sécurise
-            if (gradinIndex >= _seatTransforms.size()) continue;
-
-            glm::mat4 baseTrans = _seatTransforms[gradinIndex];
-            glm::mat4 localTrans = _spectatorSeatLocalTransforms[localSeatIndex];
-
-            // On combine
-            glm::mat4 specModel = baseTrans * localTrans;
-
-            // Ajustement de la taille, orientation vers l'echiquier (+Z du modele)
-            specModel = glm::scale(specModel, glm::vec3(0.1f)); // Echelle du Pikmin
+        for(const auto& mesh : specModel._meshes) {
+            mesh.bind();
+            mesh.bindTexture(_shaderProgram);
             
-            // Centrage de la géométrie du Pikmin
-            specModel = glm::translate(specModel, -specCenter);
+            for (const auto& s : _spectators) {
+                // Trouver la transformation globale de ce siège:
+                int gradinIndex = s.seatIndex / _spectatorSeatLocalTransforms.size();
+                int localSeatIndex = s.seatIndex % _spectatorSeatLocalTransforms.size();
 
-            glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(specModel));
-            glDrawArrays(GL_TRIANGLES, 0, specMesh.getVertexCount());
+                // S'il y a plus de sièges demandés que de gradins existants, on sécurise
+                if (gradinIndex >= _seatTransforms.size()) continue;
+
+                glm::mat4 baseTrans = _seatTransforms[gradinIndex];
+                glm::mat4 localTrans = _spectatorSeatLocalTransforms[localSeatIndex];
+
+                // On combine
+                glm::mat4 thisSpecModel = baseTrans * localTrans;
+
+                // --- AJUSTEMENT HAUTEUR ET ANIMATION (Sautillement) ---
+                // 1. Hauteur de base (ajuste cette valeur pour monter le modèle sur le siège)
+                float baseHeightOffset = 0.5f; 
+                
+                // 2. Animation de saut (basée sur le temps global)
+                // Chaque spectateur saute à un rythme légèrement décalé selon son index
+                float time = (float)ImGui::GetTime();
+                float jumpSpeed = 6.0f; // Vitesse des rebonds
+                float jumpHeight = 0.5f; // Hauteur max du saut
+                
+                // Utilise abs(sin) pour un effet de rebond sur le siège
+                float jumpAnimOscillation = std::abs(sin(time * jumpSpeed + (float)s.seatIndex * 0.5f)); 
+                
+                float finalOffset = baseHeightOffset + (jumpAnimOscillation * jumpHeight);
+                thisSpecModel = glm::translate(thisSpecModel, glm::vec3(0.0f, finalOffset, 0.0f));
+                // ------------------------------------------------------
+
+                // Ajustement de la taille, orientation vers l'echiquier (+Z du modele)
+                thisSpecModel = glm::scale(thisSpecModel, glm::vec3(0.02f)); // Echelle du Pikmin
+                
+                // Centrage de la géométrie du Pikmin
+                thisSpecModel = glm::translate(thisSpecModel, -specCenter);
+
+                
+                glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(thisSpecModel));
+                glDrawArrays(GL_TRIANGLES, 0, mesh.getVertexCount());
+            }
+            mesh.unbind();
         }
-        specMesh.unbind();
     }
 
     glBindVertexArray(0);

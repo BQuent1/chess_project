@@ -7,7 +7,7 @@
 #include <map>
 #include <set>
 #include <string>
-#include "Mesh.hpp"
+#include "Model.hpp"
 #include "Skybox.hpp"
 #include "Piece.hpp"
 
@@ -44,7 +44,7 @@ private:
     glm::vec3 _camPos;
 
     // --- Modèles 3D ---
-    std::map<std::string, Mesh> _pieceModels;
+    std::map<std::string, Model> _pieceModels;
 
     // --- Interaction ---
     int _hoveredX = -1;
