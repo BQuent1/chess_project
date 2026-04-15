@@ -2,6 +2,7 @@
 #include <cmath>
 #include "Piece.hpp"
 #include "RandomGen.hpp"
+#include <iostream>
 
 ChessEngine::ChessEngine()
 {
@@ -54,6 +55,7 @@ void ChessEngine::reset(bool chaos)
             for (int j = 0; j < 8; ++j) {
                 if (plateau[i][j].has_value()) {
                     plateau[i][j]->maxLifespan = RandomGen::weibull(15.0, 2.0);
+                    std::cout << "Piece " << plateau[i][j]->id << " a une esperence de vie de " << plateau[i][j]->maxLifespan << std::endl;
                 }
             }
         }

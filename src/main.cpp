@@ -150,23 +150,6 @@ int main()
 
                                             ImGui::End();
 
-                                            ImGui::Begin("Aleatoire");
-                                            ImGui::Text("Clique pour un nombre aléatoire grace a un generateur exponentiel");
-                                            if (ImGui::Button("Generer exponentiel"))
-                                            {
-                                                float randomValue = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
-                                                expValue          = -log(1.0f - randomValue) * 5.0f;
-                                            }
-                                            if (ImGui::Button("Generer bernoulli"))
-                                            {
-                                                bernoulliValue = (rand() % 2) == 0 ? 0.0f : 1.0f;
-                                            }
-
-                                            ImGui::Text("Valeur aléatoire exponentielle : %.2f", expValue);
-                                            ImGui::Text("Valeur bernoulli : %.2f", bernoulliValue);
-                                            ImGui::End();
-
-
                                             
                                             ImGui::Begin("Controles Camera");
                                             if (ImGui::Checkbox("Mode FPS (Vue de piece)", &fpsModeActive)) {

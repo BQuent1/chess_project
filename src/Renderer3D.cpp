@@ -737,7 +737,11 @@ void Renderer3D::triggerAnimation(int startX, int startY, int endX, int endY, Pi
     _currentAnim.piece = p;
     
     // Probabilité p = 0.4 de "succès" (donc d'arrêter de vriller en l'air).
-    _currentAnimFlips = RandomGen::geometric(0.4);
+    if (_isChaosMode) {
+        _currentAnimFlips = RandomGen::geometric(0.4);
+    } else {
+        _currentAnimFlips = 0;
+    }
 }
 
 void Renderer3D::updateViewMatrix()
