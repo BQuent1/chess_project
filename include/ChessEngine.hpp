@@ -12,6 +12,8 @@ public:
     bool                 isChaosMode = false;
 
     ChessEngine();
+    bool estEnEchec(Color joueur) const;
+    bool estEnEchecEtMat(Color joueur) const;
     void reset(bool chaos = false);
     bool noMansLand(int fromX, int fromY, int toX, int toY) const;
     bool canPionMove(int fromX, int fromY, int toX, int toY) const;

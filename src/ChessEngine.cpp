@@ -3,6 +3,9 @@
 #include "Piece.hpp"
 #include "RandomGen.hpp"
 #include <iostream>
+#include <thread>
+#include <chrono>
+#include <future>
 
 ChessEngine::ChessEngine()
 {
@@ -60,6 +63,68 @@ void ChessEngine::reset(bool chaos)
             }
         }
     }
+}
+
+// Ajout du préfixe ChessEngine::
+bool ChessEngine::estEnEchec(Color joueur) const {
+    int kingX = -1, kingY = -1;
+    for (int i = 0; i < 8; i++) {
+        for (int j = 0; j < 8; j++) {
+            if (plateau[i][j].has_value() && 
+                plateau[i][j]->type == PieceType::Roi && 
+                plateau[i][j]->color == joueur) {
+                kingX = i;
+                kingY = j;
+                break;
+            }
+        }
+    }
+
+    Color adversaire = (joueur == Color::Blanc) ? Color::Noir : Color::Blanc;
+    for (int i = 0; i < 8; i++) {
+        for (int j = 0; j < 8; j++) {
+            if (plateau[i][j].has_value() && plateau[i][j]->color == adversaire) {
+                // Ici on appelle canIMove qui est bien une méthode de la classe
+                if (canIMove(i, j, kingX, kingY)) {
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
+// Ajout du préfixe ChessEngine::
+bool ChessEngine::estEnEchecEtMat(Color joueur) const {
+    if (!estEnEchec(joueur)) return false; // Pas mat s'il n'y a même pas échec
+
+    for (int i = 0; i < 8; i++) {
+        for (int j = 0; j < 8; j++) {
+            if (plateau[i][j].has_value() && plateau[i][j]->color == joueur) {
+                
+                for (int destX = 0; destX < 8; destX++) {
+                    for (int destY = 0; destY < 8; destY++) {
+                        if (canIMove(i, j, destX, destY)) {
+                            
+                            // On crée une copie locale du moteur pour simuler le coup
+                            // sans modifier l'instance actuelle (qui est const)
+                            ChessEngine simulation = *this; 
+                            
+                            // Faire le mouvement sur la copie
+                            simulation.plateau[destX][destY] = simulation.plateau[i][j];
+                            simulation.plateau[i][j] = std::nullopt;
+
+                            // Si après ce mouvement sur la COPIE, le roi n'est plus en échec
+                            if (!simulation.estEnEchec(joueur)) {
+                                return false; 
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return true;
 }
 
 bool ChessEngine::noMansLand(int fromX, int fromY, int toX, int toY) const
@@ -136,10 +201,27 @@ void ChessEngine::executeMove(int fromX, int fromY, int toX, int toY)
         }
     }
 
+
     current_player        = (current_player == Color::Blanc) ? Color::Noir : Color::Blanc;
+    if(estEnEchec(current_player)) {
+        message = "Le roi est en echec !";
+        message += (current_player == Color::Blanc ? "Blanc a toi de jouer !" : "Noir a toi de jouer !");
+    }
+    
     if (message.find("fatigue") == std::string::npos) {
-        message               = (current_player == Color::Blanc ? "Blanc à toi de jouer !" : "Noir à toi de jouer !");
+        message               = (current_player == Color::Blanc ? "Blanc a toi de jouer !" : "Noir a toi de jouer !");
     } else {
         message += (current_player == Color::Blanc ? "A Blanc !" : "A Noir !");
+    }
+
+    if(estEnEchecEtMat(current_player)) {
+        message = "Le roi est en echec et mat ! La partie est terminée";
+        message += (current_player == Color::Blanc ? " Les Noirs ont gagné !" : " Les Blancs ont gagné !");
+
+        // retourner au menu après 5 secondes sans bloquer la fenêtre
+        std::thread([this]() {
+            std::this_thread::sleep_for(std::chrono::seconds(5));
+            this->reset(this->isChaosMode);
+        }).detach();
     }
 }
