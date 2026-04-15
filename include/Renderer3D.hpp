@@ -91,8 +91,19 @@ private:
     // Binomiale
     std::set<int> _enchantedPieces;
 
+    // Particules pour Binomiale
+    struct Particle {
+        glm::vec3 position;
+        glm::vec3 velocity;
+        float life;
+        float maxLife;
+        int pieceId;
+    };
+    std::vector<Particle> _particles;
+
     // Animation Variables
     int _currentAnimFlips = 0; // Number of flips from Geometric Law
+    float _orbitalLightAngle = 0.0f;
 
     // Fonction utilitaire pour compiler un shader (on la cachera dans le .cpp)
     unsigned int compileShader(unsigned int type, const char* source);

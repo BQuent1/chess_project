@@ -62,7 +62,7 @@ void ChessEngine::reset(bool chaos)
     }
 }
 
-bool ChessEngine::noMansLand(int fromX, int fromY, int toX, int toY)
+bool ChessEngine::noMansLand(int fromX, int fromY, int toX, int toY) const
 {
     int stepX = (toX - fromX) == 0 ? 0 : (toX - fromX) / std::abs(toX - fromX);
     int stepY = (toY - fromY) == 0 ? 0 : (toY - fromY) / std::abs(toY - fromY);
@@ -78,9 +78,9 @@ bool ChessEngine::noMansLand(int fromX, int fromY, int toX, int toY)
     return true;
 }
 
-bool ChessEngine::canPionMove(int fromX, int fromY, int toX, int toY)
+bool ChessEngine::canPionMove(int fromX, int fromY, int toX, int toY) const
 {
-    Piece& p     = plateau[fromX][fromY].value();
+    const Piece& p = plateau[fromX][fromY].value();
     int    dir   = (p.color == Color::Blanc) ? -1 : 1;
     int    start = (p.color == Color::Blanc) ? 6 : 1;
     int    dx    = toX - fromX;
@@ -95,11 +95,11 @@ bool ChessEngine::canPionMove(int fromX, int fromY, int toX, int toY)
     return false;
 }
 
-bool ChessEngine::canIMove(int fromX, int fromY, int toX, int toY)
+bool ChessEngine::canIMove(int fromX, int fromY, int toX, int toY) const
 {
     if (!plateau[fromX][fromY].has_value())
         return false;
-    Piece& p = plateau[fromX][fromY].value();
+    const Piece& p = plateau[fromX][fromY].value();
     if (plateau[toX][toY].has_value() && plateau[toX][toY]->color == p.color)
         return false;
 
@@ -128,12 +128,10 @@ void ChessEngine::executeMove(int fromX, int fromY, int toX, int toY)
 
     if (plateau[toX][toY].has_value()) {
         plateau[toX][toY]->traveledDistance += dist;
-        // -- Phase 4: Loi de Weibull (Fatigue) --
         if (isChaosMode) {
-            // Si elle dépasse sa durée de vie générée aléatoirement, la pièce meurt de fatigue et disparait du plateau.
             if (plateau[toX][toY]->traveledDistance >= plateau[toX][toY]->maxLifespan) {
                 plateau[toX][toY] = std::nullopt;
-                message = "Une piece est morte de fatigue (Weibull) ! ";
+                message = "Une piece est morte de fatigue ! ";
             }
         }
     }

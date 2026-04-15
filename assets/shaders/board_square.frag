@@ -31,7 +31,8 @@ struct PointLight {
 };
 
 uniform DirLight dirLight;
-uniform PointLight pointLight;
+uniform PointLight pointLights[2];
+uniform int numPointLights;
 
 vec3 CalcDirLight(DirLight light, vec3 normal, vec3 viewDir) {
     vec3 lightDir = normalize(-light.direction);
@@ -66,7 +67,9 @@ void main() {
     vec3 viewDir = normalize(uViewPos - FragPos);
 
     vec3 result = CalcDirLight(dirLight, norm, viewDir);
-    result += CalcPointLight(pointLight, norm, FragPos, viewDir);
+    for (int i = 0; i < numPointLights; i++) {
+        result += CalcPointLight(pointLights[i], norm, FragPos, viewDir);
+    }
 
     vec3 finalBaseColor = squareColor;
     if (hasTexture) {

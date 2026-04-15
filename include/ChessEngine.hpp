@@ -13,8 +13,8 @@ public:
 
     ChessEngine();
     void reset(bool chaos = false);
-    bool noMansLand(int fromX, int fromY, int toX, int toY);
-    bool canPionMove(int fromX, int fromY, int toX, int toY);
-    bool canIMove(int fromX, int fromY, int toX, int toY);
+    bool noMansLand(int fromX, int fromY, int toX, int toY) const;
+    bool canPionMove(int fromX, int fromY, int toX, int toY) const;
+    bool canIMove(int fromX, int fromY, int toX, int toY) const;
     void executeMove(int fromX, int fromY, int toX, int toY);
 };

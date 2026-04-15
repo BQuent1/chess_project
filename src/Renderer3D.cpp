@@ -377,22 +377,54 @@ void Renderer3D::render(int width, int height, const ChessEngine& engine, int se
     // 2. Directional Light (Lune ou Soleil global)
     glUniform3f(glGetUniformLocation(_shaderProgram, "dirLight.direction"), -0.2f, -1.0f, -0.3f);
     glUniform3f(glGetUniformLocation(_shaderProgram, "dirLight.color"), 1.0f, 1.0f, 1.0f);
-    glUniform1f(glGetUniformLocation(_shaderProgram, "dirLight.intensity"), 0.6f);
+    glUniform1f(glGetUniformLocation(_shaderProgram, "dirLight.intensity"), 1.0f); // Augmenté
 
-    // 3. Point Light Mobile (Orbite autour du plateau central X=4, Z=4)
+    // 3. Point Lights Mobiles
     float orbRadius = 6.0f;
     float orbSpeed = 0.5f;
-    glm::vec3 pointPos(4.0f + cos(time * orbSpeed) * orbRadius, 3.0f, 4.0f + sin(time * orbSpeed) * orbRadius);
-    glUniform3fv(glGetUniformLocation(_shaderProgram, "pointLight.position"), 1, glm::value_ptr(pointPos));
-    
-    // Couleur de la lumière mobile qui pulse légerement
-    float pulse = (sin(time * 2.0f) + 1.0f) * 0.5f;
-    glm::vec3 pointColor = glm::mix(glm::vec3(1.0f, 0.5f, 0.0f), glm::vec3(1.0f, 0.8f, 0.2f), pulse); // Feu / Magie
-    glUniform3fv(glGetUniformLocation(_shaderProgram, "pointLight.color"), 1, glm::value_ptr(pointColor));
-    glUniform1f(glGetUniformLocation(_shaderProgram, "pointLight.intensity"), 1.0f);
-    glUniform1f(glGetUniformLocation(_shaderProgram, "pointLight.constant"), 1.0f);
-    glUniform1f(glGetUniformLocation(_shaderProgram, "pointLight.linear"), 0.09f);
-    glUniform1f(glGetUniformLocation(_shaderProgram, "pointLight.quadratic"), 0.032f);
+
+    if (_isChaosMode) {
+        // En mode chaos, pas de point lights, seulement ambiance + orages
+        glUniform1i(glGetUniformLocation(_shaderProgram, "numPointLights"), 0);
+    } else {
+        glUniform1i(glGetUniformLocation(_shaderProgram, "numPointLights"), 2);
+        if (engine.current_player == Color::Blanc) {
+            _orbitalLightAngle += orbSpeed * deltaTime;
+        }
+
+        glm::vec3 posL1, posL2;
+        glm::vec3 colL1, colL2;
+
+        if (engine.current_player == Color::Blanc) {
+            // Blancs : 2 lumières bleues qui bougent
+            posL1 = glm::vec3(4.0f + cos(_orbitalLightAngle) * orbRadius, 3.0f, 4.0f + sin(_orbitalLightAngle) * orbRadius);
+            posL2 = glm::vec3(4.0f + cos(_orbitalLightAngle + 3.14159f) * orbRadius, 3.0f, 4.0f + sin(_orbitalLightAngle + 3.14159f) * orbRadius);
+            colL1 = glm::vec3(0.2f, 0.4f, 1.0f);
+            colL2 = glm::vec3(0.2f, 0.4f, 1.0f);
+        } else {
+            // Noirs : 2 lumières rouges fixes
+            posL1 = glm::vec3(4.0f + cos(0.0f) * orbRadius, 3.0f, 4.0f + sin(0.0f) * orbRadius);
+            posL2 = glm::vec3(4.0f + cos(3.14159f) * orbRadius, 3.0f, 4.0f + sin(3.14159f) * orbRadius);
+            colL1 = glm::vec3(1.0f, 0.1f, 0.1f);
+            colL2 = glm::vec3(1.0f, 0.1f, 0.1f);
+        }
+
+        // Light 0
+        glUniform3fv(glGetUniformLocation(_shaderProgram, "pointLights[0].position"), 1, glm::value_ptr(posL1));
+        glUniform3fv(glGetUniformLocation(_shaderProgram, "pointLights[0].color"), 1, glm::value_ptr(colL1));
+        glUniform1f(glGetUniformLocation(_shaderProgram, "pointLights[0].intensity"), 2.0f);
+        glUniform1f(glGetUniformLocation(_shaderProgram, "pointLights[0].constant"), 1.0f);
+        glUniform1f(glGetUniformLocation(_shaderProgram, "pointLights[0].linear"), 0.09f);
+        glUniform1f(glGetUniformLocation(_shaderProgram, "pointLights[0].quadratic"), 0.032f);
+
+        // Light 1
+        glUniform3fv(glGetUniformLocation(_shaderProgram, "pointLights[1].position"), 1, glm::value_ptr(posL2));
+        glUniform3fv(glGetUniformLocation(_shaderProgram, "pointLights[1].color"), 1, glm::value_ptr(colL2));
+        glUniform1f(glGetUniformLocation(_shaderProgram, "pointLights[1].intensity"), 2.0f);
+        glUniform1f(glGetUniformLocation(_shaderProgram, "pointLights[1].constant"), 1.0f);
+        glUniform1f(glGetUniformLocation(_shaderProgram, "pointLights[1].linear"), 0.09f);
+        glUniform1f(glGetUniformLocation(_shaderProgram, "pointLights[1].quadratic"), 0.032f);
+    }
 
     // ================= SOL DU PLATEAU =================
     glBindVertexArray(_squareVAO);
@@ -418,10 +450,18 @@ void Renderer3D::render(int width, int height, const ChessEngine& engine, int se
             
             bool isHovered = (_hoveredX == i && _hoveredY == j);
             bool isSelected = (selectedX == i && selectedY == j);
+            bool isPossible = (selectedX != -1 && engine.canIMove(selectedX, selectedY, i, j));
 
             if (isSelected) {
                 // Highlight jaune pour la case sélectionnée
                 tileColor = glm::mix(tileColor, glm::vec3(0.8f, 0.8f, 0.2f), 0.6f);
+            } else if (isPossible) {
+                // Highlight des mouvements possibles
+                if (engine.plateau[i][j].has_value()) {
+                    tileColor = glm::mix(tileColor, glm::vec3(0.8f, 0.2f, 0.2f), 0.6f); // Rouge si capture
+                } else {
+                    tileColor = glm::mix(tileColor, glm::vec3(0.2f, 0.8f, 0.2f), 0.6f); // Vert si vide
+                }
             } else if (isHovered) {
                 // Highlight leger pour le survol
                 tileColor = glm::mix(tileColor, glm::vec3(0.5f, 0.8f, 1.0f), 0.4f);
@@ -522,10 +562,7 @@ void Renderer3D::render(int width, int height, const ChessEngine& engine, int se
                         // Coloration
                         glm::vec3 pieceColor = (piece.color == Color::Blanc) ? glm::vec3(0.8f, 0.8f, 0.8f) : glm::vec3(0.15f, 0.15f, 0.15f);
                         
-                        // -- Phase 3: Loi Binomiale (Surbrillance Magique) --
-                        if (_isChaosMode && _enchantedPieces.count(piece.id) > 0) {
-                            pieceColor = glm::mix(pieceColor, glm::vec3(0.8f, 0.2f, 1.0f), 0.5f); // Violet magique
-                        }
+                        // -- Phase 3: Loi Binomiale (Surbrillance Magique retirée pour utiliser des particules, glow conservé optionnel) --
 
                         // Survol et Sélection de la PIÈCE
                         if (isSelected) {
@@ -721,6 +758,61 @@ void Renderer3D::render(int width, int height, const ChessEngine& engine, int se
 
     glBindVertexArray(0);
 
+    // ====== RENDU DU NUAGE DE PARTICULES (Binomiale) ======
+    if (_isChaosMode) {
+        glBindVertexArray(_squareVAO);
+        
+        // Emettre des particules pour chaque pièce enchantée toujours en vie
+        for (int i = 0; i < 8; i++) {
+            for (int j = 0; j < 8; j++) {
+                if (engine.plateau[i][j].has_value()) {
+                    const Piece& p = engine.plateau[i][j].value();
+                    if (_enchantedPieces.count(p.id) > 0) {
+                        if (RandomGen::uniformContinuous(0.0, 1.0) < 0.2) { // 20% de chances par frame
+                            Particle part;
+                            part.position = glm::vec3(j + 0.5f + RandomGen::uniformContinuous(-0.3, 0.3), 
+                                                      0.05f, 
+                                                      i + 0.5f + RandomGen::uniformContinuous(-0.3, 0.3));
+                            part.velocity = glm::vec3(RandomGen::uniformContinuous(-0.2, 0.2),
+                                                      RandomGen::uniformContinuous(0.5, 1.2), // vers le haut
+                                                      RandomGen::uniformContinuous(-0.2, 0.2));
+                            part.maxLife = RandomGen::uniformContinuous(0.5, 1.5);
+                            part.life = part.maxLife;
+                            part.pieceId = p.id;
+                            _particles.push_back(part);
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Mettre à jour et dessiner les particules
+        glUniform1i(glGetUniformLocation(_shaderProgram, "hasTexture"), 0);
+        glm::vec3 partColor = glm::vec3(0.8f, 0.2f, 1.0f); // Violet magique
+        
+        for (auto it = _particles.begin(); it != _particles.end();) {
+            it->life -= deltaTime;
+            if (it->life <= 0.0f) {
+                it = _particles.erase(it);
+            } else {
+                it->position += it->velocity * deltaTime;
+                
+                glm::mat4 model = glm::mat4(1.0f);
+                model = glm::translate(model, it->position);
+                float scale = 0.05f * (it->life / it->maxLife);
+                model = glm::scale(model, glm::vec3(scale));
+                
+                glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+                glUniform3fv(colorLoc, 1, glm::value_ptr(partColor));
+                
+                glDrawArrays(GL_TRIANGLES, 0, 36);
+                
+                ++it;
+            }
+        }
+        glBindVertexArray(0);
+    }
+
     // Rendu de la Skybox en dernier pour optimisation avec LEQUAL
     _skybox.draw(_skyboxShaderProgram, _view, _projection);
 
@@ -758,8 +850,8 @@ void Renderer3D::updateViewMatrix()
         _view = glm::lookAt(_camPos, _target, glm::vec3(0.0f, 1.0f, 0.0f));
     } else {
         // FPS mode (POV of a piece)
-        // Mettre la camera au dessus de la pièce
-        _camPos = _fpsPos + glm::vec3(0.0f, 1.0f, 0.0f);
+        // Mettre la camera au dessus de la pièce (abaissée selon demande)
+        _camPos = _fpsPos + glm::vec3(0.0f, 0.4f, 0.0f);
         glm::vec3 front;
         front.x = cos(yawRad) * cos(pitchRad);
         front.y = sin(pitchRad);

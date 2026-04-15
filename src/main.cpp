@@ -176,6 +176,28 @@ int main()
                                             }
                                             ImGui::End();
 
+                                            if (engine.isChaosMode) {
+                                                ImGui::Begin("Temps de Vie des Pieces", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+                                                for (int i = 0; i < 8; i++) {
+                                                    for (int j = 0; j < 8; j++) {
+                                                        if (engine.plateau[i][j].has_value()) {
+                                                            const Piece& p = engine.plateau[i][j].value();
+                                                            float percentage = 100.0f * (p.traveledDistance / p.maxLifespan);
+                                                            if (percentage > 100.0f) percentage = 100.0f;
+                                                            ImVec4 color = p.color == Color::Blanc ? ImVec4(1.0f, 1.0f, 1.0f, 1.0f) : ImVec4(0.6f, 0.6f, 0.6f, 1.0f);
+                                                            ImGui::TextColored(color, "%s %s (ID %d) : %.1f / %.1f u (%.0f%% fatigue)",
+                                                                (p.color == Color::Blanc) ? "Blanc" : "Noir",
+                                                                p.getIcon(),
+                                                                p.id,
+                                                                p.traveledDistance,
+                                                                p.maxLifespan,
+                                                                percentage);
+                                                        }
+                                                    }
+                                                }
+                                                ImGui::End();
+                                            }
+
                                             ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoMove; // Empêche le déplacement au clic
 
                                             ImGui::Begin("Vue 3D", nullptr, window_flags);
