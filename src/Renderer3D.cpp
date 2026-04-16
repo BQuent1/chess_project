@@ -1,24 +1,8 @@
 #include "Renderer3D.hpp"
 #include "../include/ChessEngine.hpp"
 #include <glad/glad.h>
-#include <fstream>
 #include <iostream>
-#include <sstream>
-#include <string>
 #include "RandomGen.hpp"
-
-std::string loadShaderSource(const char* filepath)
-{
-    std::ifstream     file(filepath);
-    std::stringstream buffer;
-    if (file.is_open())
-    {
-        buffer << file.rdbuf();
-        return buffer.str();
-    }
-    std::cerr << "ERREUR::SHADER::FICHIER_NON_TROUVE: " << filepath << std::endl;
-    return "";
-}
 
 Renderer3D::Renderer3D() {}
 
@@ -29,62 +13,17 @@ Renderer3D::~Renderer3D()
     glDeleteFramebuffers(1, &_fbo);
     glDeleteTextures(1, &_textureColorBuffer);
     glDeleteRenderbuffers(1, &_rbo);
-    glDeleteProgram(_shaderProgram);
-    glDeleteProgram(_skyboxShaderProgram);
-}
-
-unsigned int Renderer3D::compileShader(unsigned int type, const char* source)
-{
-    unsigned int id = glCreateShader(type);
-    glShaderSource(id, 1, &source, nullptr);
-    glCompileShader(id);
-
-    int  success;
-    char infoLog[512];
-    glGetShaderiv(id, GL_COMPILE_STATUS, &success);
-    if (!success)
-    {
-        glGetShaderInfoLog(id, 512, nullptr, infoLog);
-        std::cerr << "ERREUR::SHADER::COMPILATION_FAILED\n"
-                  << infoLog << std::endl;
-    }
-    return id;
+    
+    delete _boardShader;
+    delete _skyboxShader;
 }
 
 // ================= INITIALISATION =================
 void Renderer3D::init(int width, int height)
 {
     // 1. Shaders
-    std::string vShaderStr  = loadShaderSource("../../assets/shaders/board_square.vert");
-    std::string fShaderStr  = loadShaderSource("../../assets/shaders/board_square.frag");
-    const char* vShaderCode = vShaderStr.c_str();
-    const char* fShaderCode = fShaderStr.c_str();
-
-    unsigned int vertex   = compileShader(GL_VERTEX_SHADER, vShaderCode);
-    unsigned int fragment = compileShader(GL_FRAGMENT_SHADER, fShaderCode);
-
-    _shaderProgram = glCreateProgram();
-    glAttachShader(_shaderProgram, vertex);
-    glAttachShader(_shaderProgram, fragment);
-    glLinkProgram(_shaderProgram);
-    glDeleteShader(vertex);
-    glDeleteShader(fragment);
-
-    // Skybox Shader
-    std::string skyboxVShaderStr = loadShaderSource("../../assets/shaders/skybox.vert");
-    std::string skyboxFShaderStr = loadShaderSource("../../assets/shaders/skybox.frag");
-    const char* skyboxVShaderCode = skyboxVShaderStr.c_str();
-    const char* skyboxFShaderCode = skyboxFShaderStr.c_str();
-
-    unsigned int skyboxVertex = compileShader(GL_VERTEX_SHADER, skyboxVShaderCode);
-    unsigned int skyboxFragment = compileShader(GL_FRAGMENT_SHADER, skyboxFShaderCode);
-
-    _skyboxShaderProgram = glCreateProgram();
-    glAttachShader(_skyboxShaderProgram, skyboxVertex);
-    glAttachShader(_skyboxShaderProgram, skyboxFragment);
-    glLinkProgram(_skyboxShaderProgram);
-    glDeleteShader(skyboxVertex);
-    glDeleteShader(skyboxFragment);
+    _boardShader = new Shader("../../assets/shaders/board_square.vert", "../../assets/shaders/board_square.frag");
+    _skyboxShader = new Shader("../../assets/shaders/skybox.vert", "../../assets/shaders/skybox.frag");
 
     // Setup de la Skybox avec ses textures
     _skybox.init(); // Initialize geometry after GL context is ready
@@ -100,6 +39,7 @@ void Renderer3D::init(int width, int height)
     _skybox.loadCubemap(faces);
 
     // 2. Géométrie
+    // géométrie d'un cube
     float vertices[] = {
         // positions          // normales
         // Face Arrière
@@ -154,11 +94,6 @@ void Renderer3D::init(int width, int height)
     glBindBuffer(GL_ARRAY_BUFFER, _squareVBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
-    // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    // glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-    // glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-
     // position
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
@@ -188,9 +123,7 @@ void Renderer3D::init(int width, int height)
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     // 4. Caméra
-    updateViewMatrix();
-    _projection = glm::perspective(glm::radians(45.0f), (float)width / (float)height, 0.1f, 100.0f);
-    // _view       = glm::lookAt(glm::vec3(4.0f, 10.0f, 12.0f), glm::vec3(4.0f, 0.0f, 4.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    _camera.init(width, height);
 
     loadModels();
 
@@ -258,16 +191,16 @@ void Renderer3D::init(int width, int height)
 void Renderer3D::loadModels()
 {
     // Load each piece type model. For now, we load what we have in assets/models.
-    _pieceModels["pawn"].loadFromObj("../../assets/models/pawn_model.obj");
-    _pieceModels["knight"].loadFromObj("../../assets/models/knight_model.obj");
-    _pieceModels["bishop"].loadFromObj("../../assets/models/bishop_model.obj");
-    _pieceModels["rook"].loadFromObj("../../assets/models/rook_model.obj");
-    _pieceModels["queen"].loadFromObj("../../assets/models/queen_model.obj");
-    _pieceModels["king"].loadFromObj("../../assets/models/king_model.obj");
+    _assetManager.loadModel("pawn", "../../assets/models/pawn_model.obj");
+    _assetManager.loadModel("knight", "../../assets/models/knight_model.obj");
+    _assetManager.loadModel("bishop", "../../assets/models/bishop_model.obj");
+    _assetManager.loadModel("rook", "../../assets/models/rook_model.obj");
+    _assetManager.loadModel("queen", "../../assets/models/queen_model.obj");
+    _assetManager.loadModel("king", "../../assets/models/king_model.obj");
 
     // Decors / Spectateurs
-    _pieceModels["spectator"].loadFromGLTF("../../assets/models/spectator_model/clean_mii.glb");
-    _pieceModels["seats"].loadFromObj("../../assets/models/normal_stadium_seats_v1_L1.123cda2b5658-a3c1-4927-86c0-def7dd9a8010/16949_Normal_Stadium_Seats_v1_NEW.obj");
+    _assetManager.loadModel("spectator", "../../assets/models/spectator_model/clean_mii.glb");
+    _assetManager.loadModel("seats", "../../assets/models/normal_stadium_seats_v1_L1.123cda2b5658-a3c1-4927-86c0-def7dd9a8010/16949_Normal_Stadium_Seats_v1_NEW.obj");
 }
 
 // ================= RENDU =================
@@ -326,17 +259,17 @@ void Renderer3D::render(int width, int height, const ChessEngine& engine, int se
     glClearColor(1.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    glUseProgram(_shaderProgram);
+    _boardShader->use();
 
-    unsigned int viewLoc = glGetUniformLocation(_shaderProgram, "view");
-    unsigned int projLoc = glGetUniformLocation(_shaderProgram, "projection");
-    unsigned int modelLoc = glGetUniformLocation(_shaderProgram, "model");
-    unsigned int colorLoc = glGetUniformLocation(_shaderProgram, "squareColor");
-    unsigned int viewPosLoc = glGetUniformLocation(_shaderProgram, "uViewPos");
+    unsigned int viewLoc = glGetUniformLocation(_boardShader->ID, "view");
+    unsigned int projLoc = glGetUniformLocation(_boardShader->ID, "projection");
+    unsigned int modelLoc = glGetUniformLocation(_boardShader->ID, "model");
+    unsigned int colorLoc = glGetUniformLocation(_boardShader->ID, "squareColor");
+    unsigned int viewPosLoc = glGetUniformLocation(_boardShader->ID, "uViewPos");
 
-    glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(_view));
-    glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(_projection));
-    glUniform3fv(viewPosLoc, 1, glm::value_ptr(_camPos));
+    glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(_camera.getViewMatrix()));
+    glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(_camera.getProjectionMatrix()));
+    glUniform3fv(viewPosLoc, 1, glm::value_ptr(_camera.getPosition()));
 
     // --- Illumination System ---
     float time = ImGui::GetTime();
@@ -372,12 +305,12 @@ void Renderer3D::render(int width, int height, const ChessEngine& engine, int se
     if (_isChaosMode) {
         ambianceColor = _boardAmbientColor * baseAmbianceColor * _thunderIntensity;
     }
-    glUniform3fv(glGetUniformLocation(_shaderProgram, "ambientColor"), 1, glm::value_ptr(ambianceColor));
+    glUniform3fv(glGetUniformLocation(_boardShader->ID, "ambientColor"), 1, glm::value_ptr(ambianceColor));
 
     // 2. Directional Light (Lune ou Soleil global)
-    glUniform3f(glGetUniformLocation(_shaderProgram, "dirLight.direction"), -0.2f, -1.0f, -0.3f);
-    glUniform3f(glGetUniformLocation(_shaderProgram, "dirLight.color"), 1.0f, 1.0f, 1.0f);
-    glUniform1f(glGetUniformLocation(_shaderProgram, "dirLight.intensity"), 1.0f); // Augmenté
+    glUniform3f(glGetUniformLocation(_boardShader->ID, "dirLight.direction"), -0.2f, -1.0f, -0.3f);
+    glUniform3f(glGetUniformLocation(_boardShader->ID, "dirLight.color"), 1.0f, 1.0f, 1.0f);
+    glUniform1f(glGetUniformLocation(_boardShader->ID, "dirLight.intensity"), 1.0f); // Augmenté
 
     // 3. Point Lights Mobiles
     float orbRadius = 6.0f;
@@ -385,9 +318,9 @@ void Renderer3D::render(int width, int height, const ChessEngine& engine, int se
 
     if (_isChaosMode) {
         // En mode chaos, pas de point lights, seulement ambiance + orages
-        glUniform1i(glGetUniformLocation(_shaderProgram, "numPointLights"), 0);
+        glUniform1i(glGetUniformLocation(_boardShader->ID, "numPointLights"), 0);
     } else {
-        glUniform1i(glGetUniformLocation(_shaderProgram, "numPointLights"), 2);
+        glUniform1i(glGetUniformLocation(_boardShader->ID, "numPointLights"), 2);
         if (engine.current_player == Color::Blanc) {
             _orbitalLightAngle += orbSpeed * deltaTime;
         }
@@ -410,20 +343,20 @@ void Renderer3D::render(int width, int height, const ChessEngine& engine, int se
         }
 
         // Light 0
-        glUniform3fv(glGetUniformLocation(_shaderProgram, "pointLights[0].position"), 1, glm::value_ptr(posL1));
-        glUniform3fv(glGetUniformLocation(_shaderProgram, "pointLights[0].color"), 1, glm::value_ptr(colL1));
-        glUniform1f(glGetUniformLocation(_shaderProgram, "pointLights[0].intensity"), 2.0f);
-        glUniform1f(glGetUniformLocation(_shaderProgram, "pointLights[0].constant"), 1.0f);
-        glUniform1f(glGetUniformLocation(_shaderProgram, "pointLights[0].linear"), 0.09f);
-        glUniform1f(glGetUniformLocation(_shaderProgram, "pointLights[0].quadratic"), 0.032f);
+        glUniform3fv(glGetUniformLocation(_boardShader->ID, "pointLights[0].position"), 1, glm::value_ptr(posL1));
+        glUniform3fv(glGetUniformLocation(_boardShader->ID, "pointLights[0].color"), 1, glm::value_ptr(colL1));
+        glUniform1f(glGetUniformLocation(_boardShader->ID, "pointLights[0].intensity"), 2.0f);
+        glUniform1f(glGetUniformLocation(_boardShader->ID, "pointLights[0].constant"), 1.0f);
+        glUniform1f(glGetUniformLocation(_boardShader->ID, "pointLights[0].linear"), 0.09f);
+        glUniform1f(glGetUniformLocation(_boardShader->ID, "pointLights[0].quadratic"), 0.032f);
 
         // Light 1
-        glUniform3fv(glGetUniformLocation(_shaderProgram, "pointLights[1].position"), 1, glm::value_ptr(posL2));
-        glUniform3fv(glGetUniformLocation(_shaderProgram, "pointLights[1].color"), 1, glm::value_ptr(colL2));
-        glUniform1f(glGetUniformLocation(_shaderProgram, "pointLights[1].intensity"), 2.0f);
-        glUniform1f(glGetUniformLocation(_shaderProgram, "pointLights[1].constant"), 1.0f);
-        glUniform1f(glGetUniformLocation(_shaderProgram, "pointLights[1].linear"), 0.09f);
-        glUniform1f(glGetUniformLocation(_shaderProgram, "pointLights[1].quadratic"), 0.032f);
+        glUniform3fv(glGetUniformLocation(_boardShader->ID, "pointLights[1].position"), 1, glm::value_ptr(posL2));
+        glUniform3fv(glGetUniformLocation(_boardShader->ID, "pointLights[1].color"), 1, glm::value_ptr(colL2));
+        glUniform1f(glGetUniformLocation(_boardShader->ID, "pointLights[1].intensity"), 2.0f);
+        glUniform1f(glGetUniformLocation(_boardShader->ID, "pointLights[1].constant"), 1.0f);
+        glUniform1f(glGetUniformLocation(_boardShader->ID, "pointLights[1].linear"), 0.09f);
+        glUniform1f(glGetUniformLocation(_boardShader->ID, "pointLights[1].quadratic"), 0.032f);
     }
 
     // ================= SOL DU PLATEAU =================
@@ -448,7 +381,7 @@ void Renderer3D::render(int width, int height, const ChessEngine& engine, int se
             // Distinction visuelle Blanche/Noire tintée et Interactions
             glm::vec3 tileColor = ((i + j) % 2 == 0) ? glm::vec3(0.85f, 0.82f, 0.75f) : glm::vec3(0.18f, 0.20f, 0.22f);
             
-            bool isHovered = (_hoveredX == i && _hoveredY == j);
+            bool isHovered = (_camera.getHoveredX() == i && _camera.getHoveredY() == j);
             bool isSelected = (selectedX == i && selectedY == j);
             bool isPossible = (selectedX != -1 && engine.canIMove(selectedX, selectedY, i, j));
 
@@ -469,7 +402,7 @@ void Renderer3D::render(int width, int height, const ChessEngine& engine, int se
 
             glUniform3fv(colorLoc, 1, glm::value_ptr(tileColor));
 
-            glUniform1i(glGetUniformLocation(_shaderProgram, "hasTexture"), 0);
+            glUniform1i(glGetUniformLocation(_boardShader->ID, "hasTexture"), 0);
             glDrawArrays(GL_TRIANGLES, 0, 36);
 
             // Logique d'état du jeu pour les pièces
@@ -492,9 +425,9 @@ void Renderer3D::render(int width, int height, const ChessEngine& engine, int se
                 }
 
                 if (!modelStr.empty()) {
-                    auto it = _pieceModels.find(modelStr);
-                    if (it != _pieceModels.end()) {
-                        const Model& model3D = it->second;
+                    const Model* pModel = _assetManager.getModel(modelStr);
+                    if (pModel != nullptr) {
+                        const Model& model3D = *pModel;
 
                         // ====== CALCUL DE LA BOUNDING BOX ET CENTRAGE ======
                         glm::vec3 minAABB = model3D.getAABBMin();
@@ -562,8 +495,6 @@ void Renderer3D::render(int width, int height, const ChessEngine& engine, int se
                         // Coloration
                         glm::vec3 pieceColor = (piece.color == Color::Blanc) ? glm::vec3(0.8f, 0.8f, 0.8f) : glm::vec3(0.15f, 0.15f, 0.15f);
                         
-                        // -- Phase 3: Loi Binomiale (Surbrillance Magique retirée pour utiliser des particules, glow conservé optionnel) --
-
                         // Survol et Sélection de la PIÈCE
                         if (isSelected) {
                             pieceColor = glm::mix(pieceColor, glm::vec3(1.0f, 1.0f, 0.3f), 0.5f); // Glow Jaune
@@ -575,7 +506,7 @@ void Renderer3D::render(int width, int height, const ChessEngine& engine, int se
 
                         for(const auto& mesh : model3D._meshes) {
                             mesh.bind();
-                            mesh.bindTexture(_shaderProgram);
+                            mesh.bindTexture(_boardShader->ID);
                             glDrawArrays(GL_TRIANGLES, 0, mesh.getVertexCount());
                             mesh.unbind();
                         }
@@ -598,8 +529,8 @@ void Renderer3D::render(int width, int height, const ChessEngine& engine, int se
             case PieceType::Roi: modelName = "king"; break;
         }
 
-        if (_pieceModels.count(modelName) > 0) {
-            const Model& model3D = _pieceModels[modelName];
+        if (_assetManager.hasModel(modelName)) {
+            const Model& model3D = *_assetManager.getModel(modelName);
 
             // Interpolation position (X, Z)
             float t = std::min(_currentAnim.progress, 1.0f);
@@ -649,7 +580,7 @@ void Renderer3D::render(int width, int height, const ChessEngine& engine, int se
 
             for(const auto& mesh : model3D._meshes) {
                 mesh.bind();
-                mesh.bindTexture(_shaderProgram);
+                mesh.bindTexture(_boardShader->ID);
                 glDrawArrays(GL_TRIANGLES, 0, mesh.getVertexCount());
                 mesh.unbind();
             }
@@ -675,21 +606,21 @@ void Renderer3D::render(int width, int height, const ChessEngine& engine, int se
         bModel = glm::translate(bModel, borders[i].pos);
         bModel = glm::scale(bModel, borders[i].scale);
         glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(bModel));
-        glUniform1i(glGetUniformLocation(_shaderProgram, "hasTexture"), 0);
+        glUniform1i(glGetUniformLocation(_boardShader->ID, "hasTexture"), 0);
         glDrawArrays(GL_TRIANGLES, 0, 36);
     }
     
     // ====== RENDU DES GRADINS & SPECTATEURS (Poisson + Permutation) ======
-    if (_isChaosMode && _pieceModels.count("seats") > 0 && _pieceModels.count("spectator") > 0) {
-        const Model& seatModel = _pieceModels["seats"];
-        const Model& specModel = _pieceModels["spectator"];
+    if (_isChaosMode && _assetManager.hasModel("seats") && _assetManager.hasModel("spectator")) {
+        const Model& seatModel = *_assetManager.getModel("seats");
+        const Model& specModel = *_assetManager.getModel("spectator");
         
         // Couleur neutre / bleue pour les sièges
         glm::vec3 seatColor(0.2f, 0.4f, 0.7f);
         glUniform3fv(colorLoc, 1, glm::value_ptr(seatColor));
         for(const auto& mesh : seatModel._meshes) {
             mesh.bind();
-            mesh.bindTexture(_shaderProgram);
+            mesh.bindTexture(_boardShader->ID);
 
             for (const auto& sTrans : _seatTransforms) {
                 glm::mat4 m = glm::scale(sTrans, glm::vec3(0.02f)); // Ajustement d'echelle empirique
@@ -709,7 +640,7 @@ void Renderer3D::render(int width, int height, const ChessEngine& engine, int se
 
         for(const auto& mesh : specModel._meshes) {
             mesh.bind();
-            mesh.bindTexture(_shaderProgram);
+            mesh.bindTexture(_boardShader->ID);
             
             for (const auto& s : _spectators) {
                 // Trouver la transformation globale de ce siège:
@@ -759,62 +690,10 @@ void Renderer3D::render(int width, int height, const ChessEngine& engine, int se
     glBindVertexArray(0);
 
     // ====== RENDU DU NUAGE DE PARTICULES (Binomiale) ======
-    if (_isChaosMode) {
-        glBindVertexArray(_squareVAO);
-        
-        // Emettre des particules pour chaque pièce enchantée toujours en vie
-        for (int i = 0; i < 8; i++) {
-            for (int j = 0; j < 8; j++) {
-                if (engine.plateau[i][j].has_value()) {
-                    const Piece& p = engine.plateau[i][j].value();
-                    if (_enchantedPieces.count(p.id) > 0) {
-                        if (RandomGen::uniformContinuous(0.0, 1.0) < 0.2) { // 20% de chances par frame
-                            Particle part;
-                            part.position = glm::vec3(j + 0.5f + RandomGen::uniformContinuous(-0.3, 0.3), 
-                                                      0.05f, 
-                                                      i + 0.5f + RandomGen::uniformContinuous(-0.3, 0.3));
-                            part.velocity = glm::vec3(RandomGen::uniformContinuous(-0.2, 0.2),
-                                                      RandomGen::uniformContinuous(0.5, 1.2), // vers le haut
-                                                      RandomGen::uniformContinuous(-0.2, 0.2));
-                            part.maxLife = RandomGen::uniformContinuous(0.5, 1.5);
-                            part.life = part.maxLife;
-                            part.pieceId = p.id;
-                            _particles.push_back(part);
-                        }
-                    }
-                }
-            }
-        }
-        
-        // Mettre à jour et dessiner les particules
-        glUniform1i(glGetUniformLocation(_shaderProgram, "hasTexture"), 0);
-        glm::vec3 partColor = glm::vec3(0.8f, 0.2f, 1.0f); // Violet magique
-        
-        for (auto it = _particles.begin(); it != _particles.end();) {
-            it->life -= deltaTime;
-            if (it->life <= 0.0f) {
-                it = _particles.erase(it);
-            } else {
-                it->position += it->velocity * deltaTime;
-                
-                glm::mat4 model = glm::mat4(1.0f);
-                model = glm::translate(model, it->position);
-                float scale = 0.05f * (it->life / it->maxLife);
-                model = glm::scale(model, glm::vec3(scale));
-                
-                glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-                glUniform3fv(colorLoc, 1, glm::value_ptr(partColor));
-                
-                glDrawArrays(GL_TRIANGLES, 0, 36);
-                
-                ++it;
-            }
-        }
-        glBindVertexArray(0);
-    }
+    _particleSystem.updateAndRender(deltaTime, _isChaosMode, engine, _enchantedPieces, *_boardShader, _squareVAO);
 
     // Rendu de la Skybox en dernier pour optimisation avec LEQUAL
-    _skybox.draw(_skyboxShaderProgram, _view, _projection);
+    _skybox.draw(_skyboxShader->ID, _camera.getViewMatrix(), _camera.getProjectionMatrix());
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
@@ -836,99 +715,3 @@ void Renderer3D::triggerAnimation(int startX, int startY, int endX, int endY, Pi
     }
 }
 
-void Renderer3D::updateViewMatrix()
-{
-    float yawRad   = glm::radians(_yaw);
-    float pitchRad = glm::radians(_pitch);
-
-    if (!_isFpsMode) {
-        // Trackball mode
-        _camPos.x = _target.x + _distance * cos(pitchRad) * cos(yawRad);
-        _camPos.y = _target.y + _distance * sin(pitchRad);
-        _camPos.z = _target.z + _distance * cos(pitchRad) * sin(yawRad);
-        
-        _view = glm::lookAt(_camPos, _target, glm::vec3(0.0f, 1.0f, 0.0f));
-    } else {
-        // FPS mode (POV of a piece)
-        // Mettre la camera au dessus de la pièce (abaissée selon demande)
-        _camPos = _fpsPos + glm::vec3(0.0f, 0.4f, 0.0f);
-        glm::vec3 front;
-        front.x = cos(yawRad) * cos(pitchRad);
-        front.y = sin(pitchRad);
-        front.z = sin(yawRad) * cos(pitchRad);
-        front = glm::normalize(front);
-        
-        _view = glm::lookAt(_camPos, _camPos + front, glm::vec3(0.0f, 1.0f, 0.0f));
-    }
-}
-
-void Renderer3D::updateCamera()
-{
-    ImGuiIO& io = ImGui::GetIO();
-
-    // Sensibilité de la rotation
-    float sensitivity = 0.5f;
-
-    if (!_isFpsMode) {
-        // On récupère le mouvement relatif de la souris (MouseDelta)
-        _yaw += io.MouseDelta.x * sensitivity;
-        _pitch -= io.MouseDelta.y * sensitivity;
-
-        // Limites pour éviter de "retourner" la caméra et ne pas passer sous l'échiquier
-        if (_pitch > 89.0f) _pitch = 89.0f;
-        if (_pitch < 1.0f) _pitch = 1.0f;
-    } else {
-        _yaw += io.MouseDelta.x * sensitivity;
-        _pitch -= io.MouseDelta.y * sensitivity;
-        // la caméra peut bouger partout
-        if (_pitch > 89.0f) _pitch = 89.0f;
-        if (_pitch < -89.0f) _pitch = -89.0f;
-    }
-
-    // On recalcule la matrice de vue (View Matrix)
-    updateViewMatrix();
-}
-
-void Renderer3D::updateRaycast(float mouseX, float mouseY, int screenWidth, int screenHeight)
-{
-    // 1. Normalized Device Coordinates (NDC)
-    // Invert Y since screen goes down, but NDC goes up
-    float x = (2.0f * mouseX) / screenWidth - 1.0f;
-    float y = 1.0f - (2.0f * mouseY) / screenHeight;
-    float z = 1.0f;
-    glm::vec3 ray_nds = glm::vec3(x, y, z);
-
-    // 2. Clip Coordinates
-    glm::vec4 ray_clip = glm::vec4(ray_nds.x, ray_nds.y, -1.0, 1.0);
-
-    // 3. Eye/Camera Coordinates
-    glm::mat4 invProj = glm::inverse(_projection);
-    glm::vec4 ray_eye = invProj * ray_clip;
-    ray_eye = glm::vec4(ray_eye.x, ray_eye.y, -1.0, 0.0);
-
-    // 4. World Coordinates
-    glm::mat4 invView = glm::inverse(_view);
-    glm::vec3 ray_wor = glm::vec3(invView * ray_eye);
-    ray_wor = glm::normalize(ray_wor);
-
-    // 5. Intersection Plane (Y=0, the chessboard floor)
-    // Ray equation: P = _camPos + t * ray_wor
-    // We want P.y = 0 -> _camPos.y + t * ray_wor.y = 0 -> t = -_camPos.y / ray_wor.y
-    _hoveredX = -1;
-    _hoveredY = -1;
-
-    if (abs(ray_wor.y) > 0.001f) {
-        float t = -_camPos.y / ray_wor.y;
-        if (t >= 0.0f) {
-            glm::vec3 intersection = _camPos + t * ray_wor;
-            
-            // On map la 3D (X,Z) aux indices d'échiquier (j, i)
-            // L'échiquier fait 8x8. X de 0 à 8, Z de 0 à 8
-            if (intersection.x >= 0.0f && intersection.x < 8.0f &&
-                intersection.z >= 0.0f && intersection.z < 8.0f) {
-                _hoveredY = (int)floor(intersection.x); // j
-                _hoveredX = (int)floor(intersection.z); // i
-            }
-        }
-    }
-}

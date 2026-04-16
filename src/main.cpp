@@ -161,7 +161,6 @@ int main()
                                                     // On se place au centre de la case
                                                     glm::vec3 piecePos((float)selectedY + 0.5f, 0.5f, (float)selectedX + 0.5f);
                                                     renderer3D.setFpsMode(true, piecePos);
-                                                    renderer3D.updateViewMatrix();
                                                 } else { // sinon on fait rien
                                                     renderer3D.setFpsMode(false);
                                                     // if (fpsModeActive) {

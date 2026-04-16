@@ -7,7 +7,12 @@
 #include <map>
 #include <set>
 #include <string>
+#include <memory>
+#include "Camera.hpp"
+#include "Shader.hpp"
 #include "Model.hpp"
+#include "AssetManager.hpp"
+#include "ParticleSystem.hpp"
 #include "Skybox.hpp"
 #include "Piece.hpp"
 
@@ -20,35 +25,20 @@ private:
     unsigned int _textureColorBuffer = 0; // La texture finale
     unsigned int _rbo                = 0; // Renderbuffer (pour la profondeur/Z-buffer)
 
-    unsigned int _shaderProgram = 0;             // Le programme combinant Vertex + Fragment shaders
+    Shader* _boardShader = nullptr;
     unsigned int _squareVAO = 0, _squareVBO = 0; // Les données géométriques du carré
 
     // --- Skybox ---
     Skybox _skybox;
-    unsigned int _skyboxShaderProgram = 0;
+    Shader* _skyboxShader = nullptr;
 
     // --- Caméra ---
-    glm::mat4 _projection;
-    glm::mat4 _view;
-
-    // Trackball params
-    float     _yaw      = 90.0f;
-    float     _pitch    = 45.0f;
-    float     _distance = 12.0f;
-    glm::vec3 _target   = glm::vec3(4.0f, 0.0f, 4.0f);
-    
-    // FPS params
-    bool      _isFpsMode = false;
-    glm::vec3 _fpsPos    = glm::vec3(4.0f, 1.0f, 4.0f); // Default to center
-
-    glm::vec3 _camPos;
+    Camera _camera;
 
     // --- Modèles 3D ---
-    std::map<std::string, Model> _pieceModels;
+    AssetManager _assetManager;
 
-    // --- Interaction ---
-    int _hoveredX = -1;
-    int _hoveredY = -1; // Position de la pièce survolée                                                                                                
+
 
     // --- Animation ---
     struct MoveAnimation {
@@ -92,28 +82,19 @@ private:
     std::set<int> _enchantedPieces;
 
     // Particules pour Binomiale
-    struct Particle {
-        glm::vec3 position;
-        glm::vec3 velocity;
-        float life;
-        float maxLife;
-        int pieceId;
-    };
-    std::vector<Particle> _particles;
+    // Particules pour Binomiale
+    ParticleSystem _particleSystem;
 
     // Animation Variables
     int _currentAnimFlips = 0; // Number of flips from Geometric Law
     float _orbitalLightAngle = 0.0f;
 
-    // Fonction utilitaire pour compiler un shader (on la cachera dans le .cpp)
-    unsigned int compileShader(unsigned int type, const char* source);
-
 public:
     Renderer3D();
     ~Renderer3D();
 
-    int getHoveredX() const { return _hoveredX; }
-    int getHoveredY() const { return _hoveredY; }
+    int getHoveredX() const { return _camera.getHoveredX(); }
+    int getHoveredY() const { return _camera.getHoveredY(); }
     void setChaosMode(bool chaos) { _isChaosMode = chaos; }
     void resetChaosState() { _randomPerPieceInit = false; _enchantedPieces.clear(); _pieceOffsets.clear(); }
 
@@ -121,20 +102,15 @@ public:
     void loadModels();
     
     void render(int width, int height, const ChessEngine& engine, int selectedX = -1, int selectedY = -1);
-    void updateCamera();
-    void updateViewMatrix();
-    void updateRaycast(float mouseX, float mouseY, int screenWidth, int screenHeight);
+    void updateCamera() { _camera.updateInputs(); }
+    void updateRaycast(float mouseX, float mouseY, int screenWidth, int screenHeight) {
+        _camera.updateRaycast(mouseX, mouseY, screenWidth, screenHeight);
+    }
 
     void triggerAnimation(int startX, int startY, int endX, int endY, Piece p);
 
     void setFpsMode(bool enabled, glm::vec3 pos = glm::vec3(0.0f)) {
-        _isFpsMode = enabled;
-        if (enabled) {
-            _fpsPos = pos + glm::vec3(0.0f, 1.0f, 0.0f);
-        }
-        
-        updateViewMatrix();
-        
+        _camera.setFpsMode(enabled, pos);
     }
 
     ImTextureID getTextureID() const { return (void*)(intptr_t)_textureColorBuffer; }
