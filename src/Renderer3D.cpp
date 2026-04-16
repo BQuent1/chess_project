@@ -880,9 +880,9 @@ void Renderer3D::updateCamera()
     } else {
         _yaw += io.MouseDelta.x * sensitivity;
         _pitch -= io.MouseDelta.y * sensitivity;
-
+        // la caméra peut bouger partout
         if (_pitch > 89.0f) _pitch = 89.0f;
-        if (_pitch < -89.0f) _pitch = -89.0f; // Can look up and down freely
+        if (_pitch < -89.0f) _pitch = -89.0f;
     }
 
     // On recalcule la matrice de vue (View Matrix)

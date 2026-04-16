@@ -132,7 +132,9 @@ public:
         if (enabled) {
             _fpsPos = pos + glm::vec3(0.0f, 1.0f, 0.0f);
         }
+        
         updateViewMatrix();
+        
     }
 
     ImTextureID getTextureID() const { return (void*)(intptr_t)_textureColorBuffer; }

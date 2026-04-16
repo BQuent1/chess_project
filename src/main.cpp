@@ -3,6 +3,7 @@
 #include "Renderer3D.hpp"
 #include "quick_imgui/quick_imgui.hpp"
 #include <GLFW/glfw3.h>
+#include <iostream>
 
 int main()
 {
@@ -18,8 +19,7 @@ int main()
     ScreenState currentScreen = ScreenState::MainMenu;
 
     quick_imgui::loop("Chess Project", {.init = [&]() {
-            // Initialisation du renderer avec une taille par défaut
-            // (Il s'adaptera tout seul après)
+            // Initialisation du renderer 3D
             renderer3D.init(800, 600); }, .loop = [&]() {
                                             if (currentScreen == ScreenState::MainMenu) {
                                                 ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x * 0.5f, ImGui::GetIO().DisplaySize.y * 0.5f), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
@@ -117,8 +117,10 @@ int main()
                                                         }
                                                         else // on a déjà sélectionné une pièce
                                                         {
-                                                            if (selectedX == i && selectedY == j) // si on reclique sur la case sélectionnée
+                                                            if (selectedX == i && selectedY == j){ // si on reclique sur la case sélectionnée
                                                                 selectedX = selectedY = -1;
+                                                                renderer3D.setFpsMode(false);
+                                                            }
                                                             else if (engine.canIMove(selectedX, selectedY, i, j)) // si le mouvement est possible
                                                             {
                                                                 if (engine.plateau[selectedX][selectedY].has_value()) { // si la case est occupée par une pièce
@@ -134,10 +136,12 @@ int main()
                                                                     renderer3D.setFpsMode(true, piecePos);
                                                                 }
                                                                 selectedX = selectedY = -1;
+                                                                renderer3D.setFpsMode(false);
                                                             }
                                                             else // si le mouvement n'est pas possible
                                                             {
                                                                 selectedX = selectedY = -1;
+                                                                renderer3D.setFpsMode(false);
                                                             }
                                                         }
                                                     }
@@ -153,18 +157,19 @@ int main()
                                             
                                             ImGui::Begin("Controles Camera");
                                             if (ImGui::Checkbox("Mode FPS (Vue de piece)", &fpsModeActive)) {
-                                                if (fpsModeActive && selectedX != -1 && selectedY != -1) {
+                                                if (fpsModeActive && selectedX != -1 && selectedY != -1) { // si fps est activé et piece selectionné
                                                     // On se place au centre de la case
                                                     glm::vec3 piecePos((float)selectedY + 0.5f, 0.5f, (float)selectedX + 0.5f);
                                                     renderer3D.setFpsMode(true, piecePos);
                                                     renderer3D.updateViewMatrix();
-                                                } else {
-                                                    if (fpsModeActive) {
-                                                        // Fallback if no piece selected
-                                                        renderer3D.setFpsMode(true, glm::vec3(4.0f, 0.5f, 4.0f));
-                                                    } else {
-                                                        renderer3D.setFpsMode(false);
-                                                    }
+                                                } else { // sinon on fait rien
+                                                    renderer3D.setFpsMode(false);
+                                                    // if (fpsModeActive) {
+                                                    //     // Fallback if no piece selected
+                                                    //     renderer3D.setFpsMode(true, glm::vec3(4.0f, 0.5f, 4.0f));
+                                                    // } else {
+                                                    //     renderer3D.setFpsMode(false);
+                                                    // }
                                                 }
                                                 
                                             }
@@ -198,9 +203,9 @@ int main()
                                                 ImGui::End();
                                             }
 
-                                            ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoMove; // Empêche le déplacement au clic
+                                            // ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoMove; // Empêche le déplacement au clic
 
-                                            ImGui::Begin("Vue 3D", nullptr, window_flags);
+                                            ImGui::Begin("Vue 3D", nullptr);
 
                                             ImVec2 viewportSize = ImGui::GetContentRegionAvail();
                                             ImVec2 windowPos = ImGui::GetCursorScreenPos(); // Position absolue du coin haut gauche du viewport
