@@ -8,14 +8,11 @@ class Shader {
 public:
     unsigned int ID;
 
-    // Constructeur qui parcourt, compile et lie le shader
     Shader(const char* vertexPath, const char* fragmentPath);
     ~Shader();
 
-    // Active le shader
     void use() const;
 
-    // Fonctions utilitaires pour envoyer des variables (Uniforms)
     void setBool(const std::string &name, bool value) const;  
     void setInt(const std::string &name, int value) const;   
     void setFloat(const std::string &name, float value) const;

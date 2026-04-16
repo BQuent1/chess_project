@@ -13,8 +13,6 @@ void RandomGen::init() {
 }
 
 double RandomGen::uniformContinuous() {
-    // Generate uniform random in [0, 1)
-    // Avoid exactly 1.0 or 0.0 heavily if generating logs, but here we keep it safe:
     double u = static_cast<double>(std::rand()) / RAND_MAX;
     if (u == 0.0) u = 0.000001; // prevent log(0) error
     if (u == 1.0) u = 0.999999;
@@ -26,18 +24,18 @@ double RandomGen::uniformContinuous(double a, double b) {
 }
 
 int RandomGen::uniformDiscrete(int a, int b) {
-    // We want a result between a and b inclusive
     double u = uniformContinuous();
     int range = b - a + 1;
     return a + static_cast<int>(u * range);
 }
 
 double RandomGen::exponential(double lambda) {
+    // loi exponentielle utilisee pour le temps entre deux evenements (éclairs)
     double u = uniformContinuous();
     return -std::log(u) / lambda;
 }
 
-void RandomGen::boxMuller(double& z0, double& z1) {
+void RandomGen::boxMuller(double& z0, double& z1) { // normal
     double u1 = uniformContinuous();
     double u2 = uniformContinuous();
 
@@ -49,19 +47,21 @@ void RandomGen::boxMuller(double& z0, double& z1) {
 }
 
 double RandomGen::normal(double mu, double sigma) {
+    // loi normale utilisee pour representer l'erreur humaine (decalage)
     double z0, z1;
-    boxMuller(z0, z1); // Box-Muller gives N(0,1)
+    boxMuller(z0, z1);
     return mu + z0 * sigma;
 }
 
 double RandomGen::weibull(double lambda, double k) {
+    // loi de weibull utilisee pour representer la duree de vie des pieces
     double u = uniformContinuous();
     // X = lambda * (-ln(U))^(1/k)
     return lambda * std::pow(-std::log(u), 1.0 / k);
 }
 
 int RandomGen::poisson(double lambda) {
-    // Product method
+    // loi de poisson utilisee pour representer le nombre d'evenements dans un intervalle de temps (nbr spectateurs)
     double L = std::exp(-lambda);
     double p = 1.0;
     int k = 0;
@@ -75,6 +75,7 @@ int RandomGen::poisson(double lambda) {
 }
 
 int RandomGen::binomial(int n, double p) {
+    // loi binomiale utilisee pour representer le nombre de succes dans un nombre d'essais (nbr pieces enchantees)
     int successes = 0;
     for (int i = 0; i < n; ++i) {
         if (uniformContinuous() <= p) {
@@ -85,9 +86,8 @@ int RandomGen::binomial(int n, double p) {
 }
 
 int RandomGen::geometric(double p) {
-    // Number of failures before the first success
+    // nb d'echecs avant le premier succes (nbr vrilles)
     double u = uniformContinuous();
-    // floor( ln(U) / ln(1 - p) )
     double failures = std::floor(std::log(u) / std::log(1.0 - p));
     return static_cast<int>(failures);
 }
@@ -100,9 +100,7 @@ std::vector<int> RandomGen::randomPermutation(int n) {
 
     // Fisher-Yates shuffle
     for (int i = n - 1; i > 0; --i) {
-        // Find index between 0 and i inclusive
         int j = uniformDiscrete(0, i);
-        // Swap
         std::swap(arr[i], arr[j]);
     }
 

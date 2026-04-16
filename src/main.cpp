@@ -204,7 +204,7 @@ int main()
 
                                             // ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoMove; // Empêche le déplacement au clic
 
-                                            ImGui::Begin("Vue 3D", nullptr);
+                                            ImGui::Begin("Vue 3D", nullptr, ImGuiWindowFlags_NoResize);
 
                                             ImVec2 viewportSize = ImGui::GetContentRegionAvail();
                                             ImVec2 windowPos = ImGui::GetCursorScreenPos(); // Position absolue du coin haut gauche du viewport

@@ -35,6 +35,15 @@ private:
     // --- Caméra ---
     Camera _camera;
 
+    // --- Textures du plateau ---
+    unsigned int _boardTexWhite = 0;
+    unsigned int _boardTexBlack = 0;
+    unsigned int _borderTex     = 0;
+
+    // --- Textures des pièces ---
+    unsigned int _pieceTexWhite = 0;
+    unsigned int _pieceTexBlack = 0;
+
     // --- Modèles 3D ---
     AssetManager _assetManager;
 

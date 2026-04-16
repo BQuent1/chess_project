@@ -3,6 +3,29 @@
 #include <glad/glad.h>
 #include <iostream>
 #include "RandomGen.hpp"
+#include "../include/stb_image.h"
+
+static unsigned int loadTexture(const char* path) {
+    unsigned int texID = 0;
+    glGenTextures(1, &texID);
+    glBindTexture(GL_TEXTURE_2D, texID);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    int w, h, ch;
+    stbi_set_flip_vertically_on_load(true);
+    unsigned char* data = stbi_load(path, &w, &h, &ch, 0);
+    if (data) {
+        GLenum fmt = (ch == 4) ? GL_RGBA : GL_RGB;
+        glTexImage2D(GL_TEXTURE_2D, 0, fmt, w, h, 0, fmt, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+        stbi_image_free(data);
+    } else {
+        std::cerr << "[Texture] Impossible de charger : " << path << std::endl;
+    }
+    return texID;
+}
 
 Renderer3D::Renderer3D() {}
 
@@ -39,51 +62,51 @@ void Renderer3D::init(int width, int height)
     _skybox.loadCubemap(faces);
 
     // 2. Géométrie
-    // géométrie d'un cube
+    // géométrie d'un cube (pos + normales + UVs)
     float vertices[] = {
-        // positions          // normales
+        // positions          // normales           // UVs
         // Face Arrière
-        -0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f,
-        0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f,
-        0.5f, 0.5f, -0.5f, 0.0f, 0.0f, -1.0f,
-        0.5f, 0.5f, -0.5f, 0.0f, 0.0f, -1.0f,
-        -0.5f, 0.5f, -0.5f, 0.0f, 0.0f, -1.0f,
-        -0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f,
+        -0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f,  0.0f, 0.0f,
+        0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f,   1.0f, 0.0f,
+        0.5f, 0.5f, -0.5f, 0.0f, 0.0f, -1.0f,    1.0f, 1.0f,
+        0.5f, 0.5f, -0.5f, 0.0f, 0.0f, -1.0f,    1.0f, 1.0f,
+        -0.5f, 0.5f, -0.5f, 0.0f, 0.0f, -1.0f,   0.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f,  0.0f, 0.0f,
         // Face Avant
-        -0.5f, -0.5f, 0.5f, 0.0f, 0.0f, 1.0f,
-        0.5f, -0.5f, 0.5f, 0.0f, 0.0f, 1.0f,
-        0.5f, 0.5f, 0.5f, 0.0f, 0.0f, 1.0f,
-        0.5f, 0.5f, 0.5f, 0.0f, 0.0f, 1.0f,
-        -0.5f, 0.5f, 0.5f, 0.0f, 0.0f, 1.0f,
-        -0.5f, -0.5f, 0.5f, 0.0f, 0.0f, 1.0f,
+        -0.5f, -0.5f, 0.5f, 0.0f, 0.0f, 1.0f,   0.0f, 0.0f,
+        0.5f, -0.5f, 0.5f, 0.0f, 0.0f, 1.0f,    1.0f, 0.0f,
+        0.5f, 0.5f, 0.5f, 0.0f, 0.0f, 1.0f,     1.0f, 1.0f,
+        0.5f, 0.5f, 0.5f, 0.0f, 0.0f, 1.0f,     1.0f, 1.0f,
+        -0.5f, 0.5f, 0.5f, 0.0f, 0.0f, 1.0f,    0.0f, 1.0f,
+        -0.5f, -0.5f, 0.5f, 0.0f, 0.0f, 1.0f,   0.0f, 0.0f,
         // Face Gauche
-        -0.5f, 0.5f, 0.5f, -1.0f, 0.0f, 0.0f,
-        -0.5f, 0.5f, -0.5f, -1.0f, 0.0f, 0.0f,
-        -0.5f, -0.5f, -0.5f, -1.0f, 0.0f, 0.0f,
-        -0.5f, -0.5f, -0.5f, -1.0f, 0.0f, 0.0f,
-        -0.5f, -0.5f, 0.5f, -1.0f, 0.0f, 0.0f,
-        -0.5f, 0.5f, 0.5f, -1.0f, 0.0f, 0.0f,
+        -0.5f, 0.5f, 0.5f, -1.0f, 0.0f, 0.0f,   1.0f, 0.0f,
+        -0.5f, 0.5f, -0.5f, -1.0f, 0.0f, 0.0f,  1.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
+        -0.5f, -0.5f, 0.5f, -1.0f, 0.0f, 0.0f,  0.0f, 0.0f,
+        -0.5f, 0.5f, 0.5f, -1.0f, 0.0f, 0.0f,   1.0f, 0.0f,
         // Face Droite
-        0.5f, 0.5f, 0.5f, 1.0f, 0.0f, 0.0f,
-        0.5f, 0.5f, -0.5f, 1.0f, 0.0f, 0.0f,
-        0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 0.0f,
-        0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 0.0f,
-        0.5f, -0.5f, 0.5f, 1.0f, 0.0f, 0.0f,
-        0.5f, 0.5f, 0.5f, 1.0f, 0.0f, 0.0f,
+        0.5f, 0.5f, 0.5f, 1.0f, 0.0f, 0.0f,    1.0f, 0.0f,
+        0.5f, 0.5f, -0.5f, 1.0f, 0.0f, 0.0f,   1.0f, 1.0f,
+        0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 0.0f,  0.0f, 1.0f,
+        0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 0.0f,  0.0f, 1.0f,
+        0.5f, -0.5f, 0.5f, 1.0f, 0.0f, 0.0f,   0.0f, 0.0f,
+        0.5f, 0.5f, 0.5f, 1.0f, 0.0f, 0.0f,    1.0f, 0.0f,
         // Face Bas
-        -0.5f, -0.5f, -0.5f, 0.0f, -1.0f, 0.0f,
-        0.5f, -0.5f, -0.5f, 0.0f, -1.0f, 0.0f,
-        0.5f, -0.5f, 0.5f, 0.0f, -1.0f, 0.0f,
-        0.5f, -0.5f, 0.5f, 0.0f, -1.0f, 0.0f,
-        -0.5f, -0.5f, 0.5f, 0.0f, -1.0f, 0.0f,
-        -0.5f, -0.5f, -0.5f, 0.0f, -1.0f, 0.0f,
+        -0.5f, -0.5f, -0.5f, 0.0f, -1.0f, 0.0f, 0.0f, 1.0f,
+        0.5f, -0.5f, -0.5f, 0.0f, -1.0f, 0.0f,  1.0f, 1.0f,
+        0.5f, -0.5f, 0.5f, 0.0f, -1.0f, 0.0f,   1.0f, 0.0f,
+        0.5f, -0.5f, 0.5f, 0.0f, -1.0f, 0.0f,   1.0f, 0.0f,
+        -0.5f, -0.5f, 0.5f, 0.0f, -1.0f, 0.0f,  0.0f, 0.0f,
+        -0.5f, -0.5f, -0.5f, 0.0f, -1.0f, 0.0f, 0.0f, 1.0f,
         // Face Haut
-        -0.5f, 0.5f, -0.5f, 0.0f, 1.0f, 0.0f,
-        0.5f, 0.5f, -0.5f, 0.0f, 1.0f, 0.0f,
-        0.5f, 0.5f, 0.5f, 0.0f, 1.0f, 0.0f,
-        0.5f, 0.5f, 0.5f, 0.0f, 1.0f, 0.0f,
-        -0.5f, 0.5f, 0.5f, 0.0f, 1.0f, 0.0f,
-        -0.5f, 0.5f, -0.5f, 0.0f, 1.0f, 0.0f
+        -0.5f, 0.5f, -0.5f, 0.0f, 1.0f, 0.0f,  0.0f, 1.0f,
+        0.5f, 0.5f, -0.5f, 0.0f, 1.0f, 0.0f,   1.0f, 1.0f,
+        0.5f, 0.5f, 0.5f, 0.0f, 1.0f, 0.0f,    1.0f, 0.0f,
+        0.5f, 0.5f, 0.5f, 0.0f, 1.0f, 0.0f,    1.0f, 0.0f,
+        -0.5f, 0.5f, 0.5f, 0.0f, 1.0f, 0.0f,   0.0f, 0.0f,
+        -0.5f, 0.5f, -0.5f, 0.0f, 1.0f, 0.0f,  0.0f, 1.0f
     };
 
 
@@ -95,14 +118,19 @@ void Renderer3D::init(int width, int height)
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
     // position
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
 
     // normales
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(1);
 
+    // UVs
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+    glEnableVertexAttribArray(2);
+
     glBindVertexArray(0);
+
 
     // 3. Setup du Framebuffer
     glGenFramebuffers(1, &_fbo);
@@ -126,6 +154,14 @@ void Renderer3D::init(int width, int height)
     _camera.init(width, height);
 
     loadModels();
+
+    // 5. Textures du plateau
+    _boardTexWhite = loadTexture("../../assets/textures/white tiles/stone_tiles_02_diff_1k.jpg");
+    _boardTexBlack = loadTexture("../../assets/textures/black tiles/rabdentse_ruins_wall_diff_1k.jpg");
+
+    // 6. Textures des pièces
+    _pieceTexWhite = loadTexture("../../assets/textures/white pieces/plywood_diff_1k.jpg");
+    _pieceTexBlack = loadTexture("../../assets/textures/black pieces/black_painted_planks_diff_1k.jpg");
 
     // === INITIALISATION DES PROBABILITES ===
     RandomGen::init();
@@ -402,8 +438,21 @@ void Renderer3D::render(int width, int height, const ChessEngine& engine, int se
 
             glUniform3fv(colorLoc, 1, glm::value_ptr(tileColor));
 
-            glUniform1i(glGetUniformLocation(_boardShader->ID, "hasTexture"), 0);
+            // Textures : cases blanches/noires (désactivé si highlight)
+            bool isHighlighted = isSelected || isPossible || isHovered;
+            bool isWhiteTile = ((i + j) % 2 == 0);
+            unsigned int tileTexID = isWhiteTile ? _boardTexWhite : _boardTexBlack;
+
+            if (!isHighlighted && tileTexID != 0) {
+                glActiveTexture(GL_TEXTURE0);
+                glBindTexture(GL_TEXTURE_2D, tileTexID);
+                glUniform1i(glGetUniformLocation(_boardShader->ID, "diffuseTex"), 0);
+                glUniform1i(glGetUniformLocation(_boardShader->ID, "hasTexture"), 1);
+            } else {
+                glUniform1i(glGetUniformLocation(_boardShader->ID, "hasTexture"), 0);
+            }
             glDrawArrays(GL_TRIANGLES, 0, 36);
+
 
             // Logique d'état du jeu pour les pièces
             if (engine.plateau[i][j].has_value())
@@ -492,24 +541,45 @@ void Renderer3D::render(int width, int height, const ChessEngine& engine, int se
 
                         glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(pieceModel));
 
-                        // Coloration
-                        glm::vec3 pieceColor = (piece.color == Color::Blanc) ? glm::vec3(0.8f, 0.8f, 0.8f) : glm::vec3(0.15f, 0.15f, 0.15f);
-                        
-                        // Survol et Sélection de la PIÈCE
-                        if (isSelected) {
-                            pieceColor = glm::mix(pieceColor, glm::vec3(1.0f, 1.0f, 0.3f), 0.5f); // Glow Jaune
-                        } else if (isHovered) {
-                            pieceColor = glm::mix(pieceColor, glm::vec3(0.6f, 0.9f, 1.0f), 0.3f); // Glow Bleu ciel
-                        }
+                        // Coloration + Texture des pièces
+                        bool isPieceHighlighted = isSelected || isHovered;
+                        glm::vec3 pieceColor;
 
-                        glUniform3fv(colorLoc, 1, glm::value_ptr(pieceColor));
+                        if (isPieceHighlighted) {
+                            // Highlight en couleur pure (pas de texture)
+                            pieceColor = (piece.color == Color::Blanc) ? glm::vec3(0.8f, 0.8f, 0.8f) : glm::vec3(0.15f, 0.15f, 0.15f);
+                            if (isSelected) {
+                                pieceColor = glm::mix(pieceColor, glm::vec3(1.0f, 1.0f, 0.3f), 0.5f); // Glow Jaune
+                            } else if (isHovered) {
+                                pieceColor = glm::mix(pieceColor, glm::vec3(0.6f, 0.9f, 1.0f), 0.3f); // Glow Bleu ciel
+                            }
+                            glUniform3fv(colorLoc, 1, glm::value_ptr(pieceColor));
+                            glUniform1i(glGetUniformLocation(_boardShader->ID, "hasTexture"), 0);
+                        } else {
+                            // Texture + squareColor blanc pour ne pas teinter
+                            unsigned int pieceTexID = (piece.color == Color::Blanc) ? _pieceTexWhite : _pieceTexBlack;
+                            pieceColor = glm::vec3(1.0f);
+                            glUniform3fv(colorLoc, 1, glm::value_ptr(pieceColor));
+                            if (pieceTexID != 0) {
+                                glActiveTexture(GL_TEXTURE0);
+                                glBindTexture(GL_TEXTURE_2D, pieceTexID);
+                                glUniform1i(glGetUniformLocation(_boardShader->ID, "diffuseTex"), 0);
+                                glUniform1i(glGetUniformLocation(_boardShader->ID, "hasTexture"), 1);
+                            } else {
+                                pieceColor = (piece.color == Color::Blanc) ? glm::vec3(0.8f, 0.8f, 0.8f) : glm::vec3(0.15f, 0.15f, 0.15f);
+                                glUniform3fv(colorLoc, 1, glm::value_ptr(pieceColor));
+                                glUniform1i(glGetUniformLocation(_boardShader->ID, "hasTexture"), 0);
+                            }
+                        }
 
                         for(const auto& mesh : model3D._meshes) {
                             mesh.bind();
-                            mesh.bindTexture(_boardShader->ID);
+                            // Les .obj de pieces n'ont pas de texture propre, on skippe bindTexture
+                            // pour ne pas écraser notre texture manuelle
                             glDrawArrays(GL_TRIANGLES, 0, mesh.getVertexCount());
                             mesh.unbind();
                         }
+
                     }
                 }
             }
@@ -631,7 +701,6 @@ void Renderer3D::render(int width, int height, const ChessEngine& engine, int se
             mesh.unbind();
         }
 
-        // Couleur neutre pour que la texture du modèle soit visible sans filtre
         glm::vec3 specColor(1.0f, 1.0f, 1.0f);
         glUniform3fv(colorLoc, 1, glm::value_ptr(specColor));
         glm::vec3 specAabbMin = specModel.getAABBMin();
@@ -643,11 +712,9 @@ void Renderer3D::render(int width, int height, const ChessEngine& engine, int se
             mesh.bindTexture(_boardShader->ID);
             
             for (const auto& s : _spectators) {
-                // Trouver la transformation globale de ce siège:
                 int gradinIndex = s.seatIndex / _spectatorSeatLocalTransforms.size();
                 int localSeatIndex = s.seatIndex % _spectatorSeatLocalTransforms.size();
 
-                // S'il y a plus de sièges demandés que de gradins existants, on sécurise
                 if (gradinIndex >= _seatTransforms.size()) continue;
 
                 glm::mat4 baseTrans = _seatTransforms[gradinIndex];
@@ -656,27 +723,19 @@ void Renderer3D::render(int width, int height, const ChessEngine& engine, int se
                 // On combine
                 glm::mat4 thisSpecModel = baseTrans * localTrans;
 
-                // --- AJUSTEMENT HAUTEUR ET ANIMATION (Sautillement) ---
-                // 1. Hauteur de base (ajuste cette valeur pour monter le modèle sur le siège)
                 float baseHeightOffset = 0.5f; 
                 
-                // 2. Animation de saut (basée sur le temps global)
-                // Chaque spectateur saute à un rythme légèrement décalé selon son index
                 float time = (float)ImGui::GetTime();
-                float jumpSpeed = 6.0f; // Vitesse des rebonds
-                float jumpHeight = 0.5f; // Hauteur max du saut
+                float jumpSpeed = 6.0f; 
+                float jumpHeight = 0.5f; 
                 
-                // Utilise abs(sin) pour un effet de rebond sur le siège
                 float jumpAnimOscillation = std::abs(sin(time * jumpSpeed + (float)s.seatIndex * 0.5f)); 
                 
                 float finalOffset = baseHeightOffset + (jumpAnimOscillation * jumpHeight);
                 thisSpecModel = glm::translate(thisSpecModel, glm::vec3(0.0f, finalOffset, 0.0f));
-                // ------------------------------------------------------
 
-                // Ajustement de la taille, orientation vers l'echiquier (+Z du modele)
                 thisSpecModel = glm::scale(thisSpecModel, glm::vec3(0.02f)); // Echelle du Pikmin
                 
-                // Centrage de la géométrie du Pikmin
                 thisSpecModel = glm::translate(thisSpecModel, -specCenter);
 
                 
