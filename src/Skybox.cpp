@@ -100,17 +100,15 @@ void Skybox::draw(unsigned int shaderProgram, const glm::mat4& view, const glm::
     glDepthFunc(GL_LEQUAL);  // change depth function so depth test passes when values are equal to depth buffer's content
     glUseProgram(shaderProgram);
     
-    // remove translation from the view matrix
     glm::mat4 skyboxView = glm::mat4(glm::mat3(view));
     glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(skyboxView));
     glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
     
-    // skybox cube
     glBindVertexArray(_vao);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_CUBE_MAP, _textureID);
     glUniform1i(glGetUniformLocation(shaderProgram, "skybox"), 0);
     glDrawArrays(GL_TRIANGLES, 0, 36);
     glBindVertexArray(0);
-    glDepthFunc(GL_LESS); // set depth function back to default
+    glDepthFunc(GL_LESS);
 }

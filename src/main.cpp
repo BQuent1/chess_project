@@ -158,23 +158,16 @@ int main()
                                             ImGui::Begin("Controles Camera");
                                             if (ImGui::Checkbox("Mode FPS (Vue de piece)", &fpsModeActive)) {
                                                 if (fpsModeActive && selectedX != -1 && selectedY != -1) { // si fps est activé et piece selectionné
-                                                    // On se place au centre de la case
                                                     glm::vec3 piecePos((float)selectedY + 0.5f, 0.5f, (float)selectedX + 0.5f);
                                                     renderer3D.setFpsMode(true, piecePos);
                                                 } else { // sinon on fait rien
                                                     renderer3D.setFpsMode(false);
-                                                    // if (fpsModeActive) {
-                                                    //     // Fallback if no piece selected
-                                                    //     renderer3D.setFpsMode(true, glm::vec3(4.0f, 0.5f, 4.0f));
-                                                    // } else {
-                                                    //     renderer3D.setFpsMode(false);
-                                                    // }
                                                 }
                                                 
                                             }
                                             
                                             if (fpsModeActive && selectedX != -1 && selectedY != -1) {
-                                                // Dynamic update if selection changes while in FPS
+                                                // upadte selection pièce fpv
                                                 glm::vec3 piecePos((float)selectedY + 0.5f, 0.5f, (float)selectedX + 0.5f);
                                                 renderer3D.setFpsMode(true, piecePos);
                                             }
@@ -202,19 +195,16 @@ int main()
                                                 ImGui::End();
                                             }
 
-                                            // ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoMove; // Empêche le déplacement au clic
 
                                             ImGui::Begin("Vue 3D", nullptr, ImGuiWindowFlags_NoResize);
 
                                             ImVec2 viewportSize = ImGui::GetContentRegionAvail();
-                                            ImVec2 windowPos = ImGui::GetCursorScreenPos(); // Position absolue du coin haut gauche du viewport
+                                            ImVec2 windowPos = ImGui::GetCursorScreenPos(); 
                                             ImVec2 mousePos = ImGui::GetMousePos();
                                             
-                                            // Mouse relative to the viewport
                                             float relativeMouseX = mousePos.x - windowPos.x;
                                             float relativeMouseY = mousePos.y - windowPos.y;
 
-                                            // Only raycast if mouse is within the viewport
                                             if (relativeMouseX >= 0 && relativeMouseX < viewportSize.x && 
                                                 relativeMouseY >= 0 && relativeMouseY < viewportSize.y) {
                                                 renderer3D.updateRaycast(relativeMouseX, relativeMouseY, (int)viewportSize.x, (int)viewportSize.y);
@@ -224,14 +214,13 @@ int main()
                                             // On dessine l'image
                                             ImGui::Image(renderer3D.getTextureID(), viewportSize, ImVec2(0, 1), ImVec2(1, 0));
 
-                                            // --- GESTION DU CLIC VIA RAYCAST SUR LA VUE 3D ---
+                                            // raycast
                                             static bool isDraggingCamera = false;
                                             
-                                            // Activer le drag de la caméra uniquement si on clique en survolant la zone
+                            
                                             if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Right)) {
                                                 isDraggingCamera = true;
                                             }
-                                            // Arrêter le drag si on relâche le bouton, même en dehors de la fenêtre
                                             if (!ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
                                                 isDraggingCamera = false;
                                             }
@@ -240,16 +229,14 @@ int main()
                                                 renderer3D.updateCamera();
                                             }
 
-                                            // Click Interactions (Sélection locale)
                                             if (ImGui::IsItemHovered())
                                             {
-                                                if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) // Left click selects pieces
+                                                if (ImGui::IsMouseClicked(ImGuiMouseButton_Left))
                                                 {
                                                     int hX = renderer3D.getHoveredX();
                                                     int hY = renderer3D.getHoveredY();
 
                                                     if (hX != -1 && hY != -1) {
-                                                        // Selection Logic matching the 2D UI
                                                         if (selectedX == -1) {
                                                             if (engine.plateau[hX][hY] && engine.plateau[hX][hY]->color == engine.current_player) {
                                                                 selectedX = hX;
@@ -277,7 +264,7 @@ int main()
                                                                 }
                                                                 selectedX = selectedY = -1;
                                                             } else {
-                                                                selectedX = selectedY = -1; // Deselect on invalid move
+                                                                selectedX = selectedY = -1;
                                                             }
                                                         }
                                                     }
